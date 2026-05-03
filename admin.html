@@ -17,18 +17,12 @@
         </div>
         
         <div class="p-8">
-            <h2 class="text-lg font-bold mb-4 text-gray-300">➕ 新增住宿候選 (含地理座標)</h2>
+            <h2 class="text-lg font-bold mb-4 text-gray-300">➕ 新增住宿候選</h2>
             <form id="add-hotel-form" class="space-y-5 mb-8" onsubmit="window.submitNewHotel(event)">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <div><label class="block text-sm font-medium text-gray-400 mb-1">飯店名稱</label><input type="text" id="hotel-name" required class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"></div>
                     <div><label class="block text-sm font-medium text-gray-400 mb-1">每晚價格 (日幣)</label><input type="number" id="hotel-price" required class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"></div>
                 </div>
-                
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-5 bg-gray-750 p-4 rounded-xl border border-gray-600 border-dashed">
-                    <div><label class="block text-sm font-medium text-blue-400 mb-1"><i class="fa-solid fa-map-pin mr-1"></i>緯度 (Latitude)</label><input type="number" step="any" id="hotel-lat" placeholder="例如: 42.8631" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"></div>
-                    <div><label class="block text-sm font-medium text-blue-400 mb-1"><i class="fa-solid fa-map-pin mr-1"></i>經度 (Longitude)</label><input type="number" step="any" id="hotel-lng" placeholder="例如: 140.6972" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"></div>
-                </div>
-
                 <div><label class="block text-sm font-medium text-gray-400 mb-1">距離與特色描述</label><input type="text" id="hotel-desc" placeholder="例如：走路 5 分鐘" required class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"></div>
                 <div><label class="block text-sm font-medium text-gray-400 mb-1">封面圖片網址 (URL)</label><input type="url" id="hotel-image" placeholder="https://..." required class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"></div>
                 <button type="submit" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-lg shadow-lg active:scale-95 transition-transform"><i class="fa-solid fa-cloud-arrow-up mr-2"></i> 發射住宿至雲端</button>
