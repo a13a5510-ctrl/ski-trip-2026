@@ -17,12 +17,18 @@
         </div>
         
         <div class="p-8">
-            <h2 class="text-lg font-bold mb-4 text-gray-300">➕ 新增住宿候選</h2>
+            <h2 class="text-lg font-bold mb-4 text-gray-300">➕ 新增住宿候選 (含地理座標)</h2>
             <form id="add-hotel-form" class="space-y-5 mb-8" onsubmit="window.submitNewHotel(event)">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <div><label class="block text-sm font-medium text-gray-400 mb-1">飯店名稱</label><input type="text" id="hotel-name" required class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"></div>
                     <div><label class="block text-sm font-medium text-gray-400 mb-1">每晚價格 (日幣)</label><input type="number" id="hotel-price" required class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"></div>
                 </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5 bg-gray-750 p-4 rounded-xl border border-gray-600 border-dashed">
+                    <div><label class="block text-sm font-medium text-blue-400 mb-1"><i class="fa-solid fa-map-pin mr-1"></i>緯度 (Latitude)</label><input type="number" step="any" id="hotel-lat" placeholder="例如: 42.8631" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"></div>
+                    <div><label class="block text-sm font-medium text-blue-400 mb-1"><i class="fa-solid fa-map-pin mr-1"></i>經度 (Longitude)</label><input type="number" step="any" id="hotel-lng" placeholder="例如: 140.6972" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"></div>
+                </div>
+
                 <div><label class="block text-sm font-medium text-gray-400 mb-1">距離與特色描述</label><input type="text" id="hotel-desc" placeholder="例如：走路 5 分鐘" required class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"></div>
                 <div><label class="block text-sm font-medium text-gray-400 mb-1">封面圖片網址 (URL)</label><input type="url" id="hotel-image" placeholder="https://..." required class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"></div>
                 <button type="submit" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-lg shadow-lg active:scale-95 transition-transform"><i class="fa-solid fa-cloud-arrow-up mr-2"></i> 發射住宿至雲端</button>
@@ -30,29 +36,17 @@
 
             <div class="border-t border-gray-700 pt-6 mb-8">
                 <h2 class="text-lg font-bold mb-4 text-gray-300"><i class="fa-solid fa-list-check mr-2"></i>管理現有住宿 (封印術)</h2>
-                <div id="admin-hotels-list" class="space-y-3 max-h-60 overflow-y-auto pr-2">
-                    <p class="text-gray-500 text-sm">載入中...</p>
-                </div>
+                <div id="admin-hotels-list" class="space-y-3 max-h-60 overflow-y-auto pr-2"><p class="text-gray-500 text-sm">載入中...</p></div>
             </div>
 
             <div class="border-t border-gray-700 pt-6 mb-8">
                 <h2 class="text-lg font-bold mb-4 text-blue-400"><i class="fa-solid fa-clock mr-2"></i>⏳ 新增行程積木 (時光之柱)</h2>
                 <form id="add-timeline-form" class="space-y-4" onsubmit="window.submitNewTimeline(event)">
                     <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div><label class="block text-sm text-gray-400 mb-1">第幾天 (數字)</label><input type="number" id="t-day" required class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white" value="1"></div>
+                        <div><label class="block text-sm text-gray-400 mb-1">第幾天</label><input type="number" id="t-day" required class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white" value="1"></div>
                         <div><label class="block text-sm text-gray-400 mb-1">日期</label><input type="text" id="t-date" required class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white" placeholder="2/10"></div>
                         <div><label class="block text-sm text-gray-400 mb-1">時間</label><input type="time" id="t-time" required class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white"></div>
-                        <div>
-                            <label class="block text-sm text-gray-400 mb-1">分類圖示</label>
-                            <select id="t-icon" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white">
-                                <option value="fa-plane">✈️ 飛機航班</option>
-                                <option value="fa-bus">🚌 陸地交通</option>
-                                <option value="fa-hotel">🏨 飯店住宿</option>
-                                <option value="fa-person-snowboarding">🏂 激戰滑雪</option>
-                                <option value="fa-utensils">🍔 餐廳覓食</option>
-                                <option value="fa-flag">🚩 集合地</option>
-                            </select>
-                        </div>
+                        <div><label class="block text-sm text-gray-400 mb-1">分類圖示</label><select id="t-icon" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white"><option value="fa-plane">✈️ 飛機航班</option><option value="fa-bus">🚌 陸地交通</option><option value="fa-hotel">🏨 飯店住宿</option><option value="fa-person-snowboarding">🏂 激戰滑雪</option><option value="fa-utensils">🍔 餐廳覓食</option><option value="fa-flag">🚩 集合地</option></select></div>
                     </div>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div><label class="block text-sm text-gray-400 mb-1">標題</label><input type="text" id="t-title" required class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white" placeholder="星宇航空 JX800"></div>
@@ -72,7 +66,6 @@
             </div>
         </div>
     </div>
-
     <script type="module" src="admin.js"></script>
 </body>
 </html>
