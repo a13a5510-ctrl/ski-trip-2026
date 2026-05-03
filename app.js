@@ -2,6 +2,9 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getDatabase, ref, onValue, update, increment } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
+// 🌟 編年史常數同步
+const TRIP_ID = '2026_Japan';
+
 class FirebaseService {
     constructor() {
         const firebaseConfig = {
@@ -13,18 +16,18 @@ class FirebaseService {
             messagingSenderId: "364506305602",
             appId: "1:364506305602:web:9349e54a6136be42858d4e"
         };
-        const app = initializeApp(firebaseConfig);
-        this.db = getDatabase(app);
+        this.db = getDatabase(initializeApp(firebaseConfig));
     }
 
     listenToHotels(callback) {
-        onValue(ref(this.db, 'hotels'), (snapshot) => {
+        // 🌟 監聽新路徑
+        onValue(ref(this.db, `${TRIP_ID}/hotels`), (snapshot) => {
             if (snapshot.val()) callback(snapshot.val());
         });
     }
 
     async submitVote(hotelId, change) {
-        return await update(ref(this.db, `hotels/${hotelId}`), { totalVotes: increment(change) });
+        return await update(ref(this.db, `${TRIP_ID}/hotels/${hotelId}`), { totalVotes: increment(change) });
     }
 }
 
@@ -56,6 +59,9 @@ class UIManager {
     renderHotels(data, myVotes) {
         let html = '';
         Object.entries(data).forEach(([id, hotel]) => {
+            // 🛡️ 防禦陣法：如果這家飯店被標記為隱藏，直接跳過不畫它！
+            if (hotel.is_deleted) return;
+
             const votes = hotel.totalVotes || 0;
             const myCount = myVotes[id] || 0;
             html += `
@@ -81,6 +87,9 @@ class UIManager {
                 </div>
             `;
         });
+        
+        // 如果全部都被刪除了，給個提示
+        if(html === '') html = '<div class="text-center py-10 text-gray-400">目前尚無開放投票的住宿</div>';
         this.elements.hotelsContainer.innerHTML = html;
     }
 
@@ -105,35 +114,28 @@ class UIManager {
         this.elements.timelineContainer.innerHTML = html;
     }
 
-    // 🌟 第九卷：財務總管的動態結算陣法
     renderDynamicBill(topHotel, appState) {
         if (!this.elements.billDetails) return null;
 
-        // 1. 匯率與符號設定
         const rates = { JPY: 1, TWD: 0.21, HKD: 0.05 };
         const symbols = { JPY: '¥', TWD: 'NT$', HKD: 'HK$' };
         const rate = rates[appState.currency];
         const sym = symbols[appState.currency];
         const p = appState.peopleCount;
 
-        // 2. 底層基礎花費 (全部假定以 JPY 日幣為基準)
-        const baseFlight = 75000; // 機票：每人費用
-        const baseLift = 20000;   // 纜車：每人費用
-        const baseTransport = 60000; // 包車接駁：團體總費用 (均攤)
-        // 住宿：假設 topHotel.price 是「一間房每晚」的價錢，我們抓 4 晚的團體總價來均攤
+        const baseFlight = 75000; 
+        const baseLift = 20000;   
+        const baseTransport = 60000; 
         const baseHotel = topHotel ? topHotel.price * 4 : 0; 
 
-        // 3. 計算個人 AA 應付額 (日幣)
         const flightAA = baseFlight;
         const liftAA = baseLift;
         const transportAA = Math.round(baseTransport / p);
         const hotelAA = Math.round(baseHotel / p);
         const totalAA = flightAA + liftAA + transportAA + hotelAA;
 
-        // 4. 轉換器：將日幣轉換為選擇的幣值並加上千分位逗號
         const format = (val) => `${sym} ` + Math.round(val * rate).toLocaleString();
 
-        // 5. 渲染畫面
         this.elements.billDetails.innerHTML = `
             <div class="flex justify-between items-center"><div class="flex items-center text-gray-600 dark:text-gray-300"><span class="w-8 text-center mr-1">✈️</span> 機票 (個人)</div><span class="font-medium dark:text-gray-200">${format(flightAA)}</span></div>
             <div class="flex justify-between items-center"><div class="flex items-center text-gray-600 dark:text-gray-300"><span class="w-8 text-center mr-1">🎫</span> 纜車 (個人)</div><span class="font-medium dark:text-gray-200">${format(liftAA)}</span></div>
@@ -142,17 +144,13 @@ class UIManager {
             <div class="flex justify-between items-center mt-4 pt-4 border-t border-gray-200 dark:border-gray-700"><div class="flex items-center text-gray-800 dark:text-white font-bold"><span class="w-8 text-center mr-1">💰</span> 每人應付總計</div><span class="font-black text-blue-600 dark:text-blue-400 text-xl">${format(totalAA)}</span></div>
         `;
 
-        // 6. 更新 UI 按鈕狀態
         this.elements.peopleCount.innerText = p;
         document.querySelectorAll('.curr-btn').forEach(btn => {
-            if (btn.dataset.curr === appState.currency) {
-                btn.className = `curr-btn px-3 py-1.5 rounded-md text-xs font-bold transition-colors bg-blue-600 text-white`;
-            } else {
-                btn.className = `curr-btn px-3 py-1.5 rounded-md text-xs font-bold transition-colors bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300`;
-            }
+            btn.className = btn.dataset.curr === appState.currency 
+                ? `curr-btn px-3 py-1.5 rounded-md text-xs font-bold transition-colors bg-blue-600 text-white`
+                : `curr-btn px-3 py-1.5 rounded-md text-xs font-bold transition-colors bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300`;
         });
 
-        // 回傳給系統大腦，方便後續「複製」使用
         return { flightAA, liftAA, transportAA, hotelAA, totalAA, rate, sym, hotelName: topHotel ? topHotel.name : '未定' };
     }
 
@@ -172,9 +170,9 @@ class SkiApp {
             nickname: "",
             tokens: parseInt(localStorage.getItem('ski_tokens')) || 10,
             myVotes: JSON.parse(localStorage.getItem('ski_my_votes')) || {},
-            topHotel: null, // 儲存目前的最高票飯店
-            currency: 'TWD', // 預設幣值
-            peopleCount: 4,  // 預設人數 4 人
+            topHotel: null,
+            currency: 'TWD',
+            peopleCount: 4, 
             currentBillData: null 
         };
         this.service = new FirebaseService();
@@ -193,13 +191,15 @@ class SkiApp {
         this.ui.renderTimeline(this.itinerary);
         this.ui.updateTokens(this.state.tokens);
         
-        // 監聽資料庫
         this.service.listenToHotels((data) => {
             this.ui.renderHotels(data, this.state.myVotes);
             
-            // 找出最高票飯店並觸發結算
             let maxVotes = -1;
+            this.state.topHotel = null; // 重置
             Object.values(data).forEach(hotel => {
+                // 🛡️ 防禦陣法：在計算最高票時，被隱藏的飯店沒有資格競選！
+                if (hotel.is_deleted) return;
+
                 const votes = hotel.totalVotes || 0;
                 if (votes > maxVotes) { maxVotes = votes; this.state.topHotel = hotel; }
             });
@@ -207,25 +207,12 @@ class SkiApp {
         });
     }
 
-    // 🌟 改變幣值
-    setCurrency(curr) {
-        this.state.currency = curr;
-        this.triggerBillUpdate();
-    }
-
-    // 🌟 改變人數 (防呆：最少 1 人，最多 20 人)
+    setCurrency(curr) { this.state.currency = curr; this.triggerBillUpdate(); }
     changePeople(delta) {
         const newCount = this.state.peopleCount + delta;
-        if (newCount >= 1 && newCount <= 20) {
-            this.state.peopleCount = newCount;
-            this.triggerBillUpdate();
-        }
+        if (newCount >= 1 && newCount <= 20) { this.state.peopleCount = newCount; this.triggerBillUpdate(); }
     }
-
-    // 🌟 觸發帳單重繪
-    triggerBillUpdate() {
-        this.state.currentBillData = this.ui.renderDynamicBill(this.state.topHotel, this.state);
-    }
+    triggerBillUpdate() { this.state.currentBillData = this.ui.renderDynamicBill(this.state.topHotel, this.state); }
 
     async handleVote(id, change) {
         const currentVal = this.state.myVotes[id] || 0;
@@ -250,11 +237,8 @@ class SkiApp {
         if (!this.state.currentBillData) return;
         const b = this.state.currentBillData;
         const f = (val) => `${b.sym} ` + Math.round(val * b.rate).toLocaleString();
-        
-        // 複製的訊息會自動帶入人數與當前幣值！
         const msg = `【${this.state.nickname}的滑雪帳單 (共 ${this.state.peopleCount} 人分攤)】\n✈️ 機票：${f(b.flightAA)}\n🎫 纜車：${f(b.liftAA)}\n🚌 包車：${f(b.transportAA)}\n🏨 住宿(${b.hotelName})：${f(b.hotelAA)}\n💰 每人應付：${f(b.totalAA)}\n\n🏦 請匯款至：(代碼 808) 1234-567-890123\n🙏 期待一起滑雪！`;
-        
-        navigator.clipboard.writeText(msg).then(() => Swal.fire('成功', '動態帳單已複製！請去 LINE 貼上', 'success'));
+        navigator.clipboard.writeText(msg).then(() => Swal.fire('成功', '動態帳單已複製', 'success'));
     }
 }
 
