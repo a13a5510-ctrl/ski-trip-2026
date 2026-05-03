@@ -55,39 +55,41 @@ class UIManager {
         });
     }
 
-    // 🌟 新增：畫出戰略地圖
+    // 🌟 畫出戰略地圖 (終極防禦版：解決灰色破圖問題)
     renderMap(data) {
         if (!this.elements.mapDom) return;
         
-        // 1. 初始化地圖 (預設視角: 日本北海道)
+        // 1. 初始化地圖
         if (!this.mapInstance) {
             this.mapInstance = L.map('hotel-map').setView([43.06, 141.35], 6);
-            // 使用淺色系的 CartoDB 圖磚，讓地圖看起來更高級乾淨
             L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
                 attribution: '&copy; OpenStreetMap'
             }).addTo(this.mapInstance);
         }
 
-        // 2. 清除舊的圖釘
+        // 2. 清除舊圖釘
         this.mapMarkers.forEach(m => this.mapInstance.removeLayer(m));
         this.mapMarkers = [];
 
-        // 3. 放上新的圖釘
+        // 3. 收集座標
         const bounds = [];
         Object.values(data).forEach(hotel => {
-            // 如果被刪除、或是沒有輸入座標，就不畫在地圖上
             if (hotel.is_deleted || !hotel.lat || !hotel.lng) return;
-            
             const marker = L.marker([hotel.lat, hotel.lng]).addTo(this.mapInstance);
             marker.bindPopup(`<b class="text-blue-600">${hotel.name}</b><br>¥${hotel.price.toLocaleString()}`);
             this.mapMarkers.push(marker);
             bounds.push([hotel.lat, hotel.lng]);
         });
 
-        // 4. 自動縮放視野，讓所有圖釘都能塞進畫面裡
-        if (bounds.length > 0) {
-            this.mapInstance.fitBounds(bounds, { padding: [20, 20], maxZoom: 14 });
-        }
+        // 🛡️ 終極時空防禦陣法：
+        // 等待 400 毫秒，確保前端的「登入淡出動畫」已經完全結束，
+        // 容器有了真實大小後，再叫地圖重新計算並縮放！
+        setTimeout(() => {
+            this.mapInstance.invalidateSize();
+            if (bounds.length > 0) {
+                this.mapInstance.fitBounds(bounds, { padding: [20, 20], maxZoom: 14 });
+            }
+        }, 400);
     }
 
     renderHotels(data, myVotes) {
