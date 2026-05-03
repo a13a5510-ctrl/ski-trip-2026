@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>2026 日本滑雪戰情室</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = { darkMode: 'class', }
+    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <style>
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        * { -webkit-tap-highlight-color: transparent; }
+    </style>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-100 font-sans antialiased transition-colors duration-300">
+
+    <button onclick="window.toggleDarkMode()" class="absolute top-4 right-4 z-[100] w-10 h-10 rounded-full bg-white dark:bg-gray-800 shadow-md flex justify-center items-center text-gray-600 dark:text-yellow-400 active:scale-95 transition-transform">
+        <i id="theme-icon" class="fa-solid fa-moon text-lg"></i>
+    </button>
+
+    <div class="max-w-md mx-auto bg-white dark:bg-gray-800 min-h-screen relative shadow-2xl overflow-hidden flex flex-col transition-colors duration-300">
+
+        <div id="login-screen" class="absolute inset-0 z-50 bg-white dark:bg-gray-800 flex flex-col justify-center items-center px-6 transition-opacity duration-300">
+            <div class="text-6xl mb-6 drop-shadow-md">🏂</div>
+            <h1 class="text-3xl font-bold mb-2 text-gray-900 dark:text-white tracking-tight">2026 滑雪戰情室</h1>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mb-8 text-center">輸入暱稱，領取 10 枚雪花幣<br>開始規劃我們的極致旅程</p>
+            
+            <input type="text" id="nickname-input" placeholder="請輸入你的暱稱 (如: 阿明)" class="w-full px-4 py-4 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 mb-6 text-center text-lg shadow-inner">
+            
+            <button onclick="window.login()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-4 rounded-xl shadow-lg shadow-blue-500/30 transition transform active:scale-95 text-lg">
+                進入戰情室
+            </button>
+        </div>
+
+        <div id="main-app" class="hidden flex-1 flex flex-col h-screen">
+            <header class="bg-blue-600 dark:bg-blue-800 text-white pt-12 pb-5 px-6 rounded-b-3xl shadow-md z-10 transition-colors duration-300">
+                <div class="flex justify-between items-center mb-2">
+                    <span id="user-greeting" class="font-bold text-xl tracking-wide">嗨，雪友</span>
+                    <div class="bg-blue-900 bg-opacity-40 px-3 py-1 rounded-full text-sm flex items-center shadow-inner">
+                        <i class="fa-solid fa-snowflake text-blue-200 mr-2"></i>
+                        <span>餘額: <strong id="token-balance" class="text-xl ml-1">10</strong></span>
+                    </div>
+                </div>
+                <p class="text-sm text-blue-100 opacity-90">請將雪花幣投給你最想去的行程</p>
+            </header>
+
+            <main class="flex-1 overflow-y-auto no-scrollbar pb-24 bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
+                
+                <div id="tab-voting" class="p-4 space-y-5">
+                    <h2 class="font-bold text-gray-700 dark:text-gray-200 mb-2 px-2 text-lg"><i class="fa-solid fa-fire text-orange-500 mr-2"></i>熱門住宿候選</h2>
+                    <div id="hotels-container">
+                        </div>
+                </div>
+
+                <div id="tab-timeline" class="hidden p-5">
+                    <h2 class="font-bold text-gray-700 dark:text-gray-200 mb-6 text-lg"><i class="fa-solid fa-route text-blue-500 mr-2"></i>最終確認行程</h2>
+                    <div class="relative border-l-2 border-blue-400 dark:border-blue-600 ml-3 space-y-8 pb-4">
+                        <div class="relative pl-6">
+                            <div class="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-blue-500 border-4 border-white dark:border-gray-800 shadow"></div>
+                            <h3 class="font-bold text-blue-600 dark:text-blue-400 mb-3 text-lg">Day 1：啟程與抵達</h3>
+                            <div class="bg-white dark:bg-gray-800 p-3 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 mb-3 flex items-center">
+                                <div class="w-10 h-10 rounded-lg bg-orange-100 dark:bg-orange-900/30 text-orange-500 flex justify-center items-center mr-3 flex-shrink-0"><i class="fa-solid fa-plane"></i></div>
+                                <div><div class="font-bold text-sm dark:text-gray-100">星宇航空 JX800</div><div class="text-xs text-gray-500 dark:text-gray-400">08:30 TPE ➔ 12:45 NRT</div></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tab-bill" class="hidden p-4">
+                    <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-md border border-gray-100 dark:border-gray-700 relative overflow-hidden">
+                        <div class="absolute top-0 right-0 w-32 h-32 bg-blue-50 dark:bg-gray-700 rounded-bl-full -z-10 opacity-50"></div>
+                        <h3 class="font-bold text-xl mb-6 text-center text-gray-800 dark:text-white border-b dark:border-gray-700 pb-3">個人 AA 預估帳單</h3>
+                        <div class="space-y-4 mb-8">
+                            <div class="flex justify-between items-center"><div class="flex items-center text-gray-600 dark:text-gray-300"><span class="w-8 text-center mr-1">✈️</span> 機票</div><span class="font-medium dark:text-gray-200">NT$ 15,400</span></div>
+                            <div class="flex justify-between items-center"><div class="flex items-center text-gray-600 dark:text-gray-300"><span class="w-8 text-center mr-1">💰</span> 總計需匯款</div><span class="font-bold text-blue-600 dark:text-blue-400 text-xl">NT$ 30,200</span></div>
+                        </div>
+                        <button onclick="window.copyBillMessage()" class="w-full bg-gray-900 dark:bg-blue-600 hover:bg-gray-800 dark:hover:bg-blue-500 text-white py-4 rounded-xl font-bold shadow-lg active:scale-95 transition-transform flex justify-center items-center text-lg">
+                            <i class="fa-regular fa-copy mr-2"></i> 複製請款訊息
+                        </button>
+                    </div>
+                </div>
+
+            </main>
+
+            <nav class="absolute bottom-0 w-full bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 pb-safe z-20 transition-colors duration-300">
+                <div class="flex justify-around items-center h-16 px-2">
+                    <button onclick="window.switchTab('voting')" class="nav-btn text-blue-600 dark:text-blue-400 flex flex-col items-center flex-1 py-1 rounded-lg active:bg-gray-100 dark:active:bg-gray-700 transition-colors" data-tab="voting">
+                        <i class="fa-solid fa-check-to-slot text-2xl mb-1"></i><span class="text-[10px] font-bold">海選投票</span>
+                    </button>
+                    <button onclick="window.switchTab('timeline')" class="nav-btn text-gray-400 dark:text-gray-500 flex flex-col items-center flex-1 py-1 rounded-lg active:bg-gray-100 dark:active:bg-gray-700 transition-colors" data-tab="timeline">
+                        <i class="fa-solid fa-route text-2xl mb-1"></i><span class="text-[10px] font-bold">行程表</span>
+                    </button>
+                    <button onclick="window.switchTab('bill')" class="nav-btn text-gray-400 dark:text-gray-500 flex flex-col items-center flex-1 py-1 rounded-lg active:bg-gray-100 dark:active:bg-gray-700 transition-colors" data-tab="bill">
+                        <i class="fa-solid fa-file-invoice-dollar text-2xl mb-1"></i><span class="text-[10px] font-bold">AA 帳單</span>
+                    </button>
+                </div>
+            </nav>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getDatabase, ref, onValue, update, increment } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+
+        // ⚠️ 徒兒！務必把下方換成你的金鑰！
+        const firebaseConfig = {
+            apiKey: "AIzaSyD7YddLJXGtjE-pK4N8oFVgxPqqODB8MZM",
+            authDomain: "ski-dashboard-2026-c146e.firebaseapp.com",
+            databaseURL: "https://ski-dashboard-2026-c146e-default-rtdb.firebaseio.com",
+            projectId: "ski-dashboard-2026-c146e",
+            storageBucket: "ski-dashboard-2026-c146e.firebasestorage.app",
+            messagingSenderId: "364506305602",
+            appId: "1:364506305602:web:9349e54a6136be42858d4e"
+                };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        window.state = {
+            nickname: "",
+            totalTokens: 10,
+            myVotes: {} 
+        };
+
+        window.login = function() {
+            const input = document.getElementById('nickname-input').value.trim();
+            if(!input) {
+                Swal.fire({ icon: 'error', title: '徒兒...', text: '名字要打啊！' });
+                return;
+            }
+            window.state.nickname = input;
+            document.getElementById('user-greeting').innerText = `嗨，${window.state.nickname}`;
+            
+            document.getElementById('login-screen').style.opacity = '0';
+            setTimeout(() => {
+                document.getElementById('login-screen').style.display = 'none';
+                document.getElementById('main-app').classList.remove('hidden');
+                startListeningToHotels();
+            }, 300);
+        }
+
+        function startListeningToHotels() {
+            const hotelsRef = ref(db, 'hotels');
+            onValue(hotelsRef, (snapshot) => {
+                const data = snapshot.val();
+                if (data) {
+                    renderHotels(data);
+                }
+            });
+        }
+
+        function renderHotels(hotelsData) {
+            const container = document.getElementById('hotels-container');
+            let htmlStr = '';
+
+            for (const [key, hotel] of Object.entries(hotelsData)) {
+                const totalVotes = hotel.totalVotes || 0;
+                const myVoteCount = window.state.myVotes[key] || 0;
+
+                // 注意這裡的按鈕，大師已經幫你寫死 window.vote 了，絕對不要改掉它喔！
+                htmlStr += `
+                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden mb-4">
+                        <div class="h-44 relative bg-cover bg-center" style="background-image: url('${hotel.image}');">
+                            <div class="absolute top-3 left-3 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded-md backdrop-blur-sm">${hotel.tags ? hotel.tags[0] : '精選'}</div>
+                            <div class="absolute bottom-3 right-3 bg-blue-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg">總票數: ${totalVotes} 票</div>
+                        </div>
+                        <div class="p-4">
+                            <div class="flex justify-between items-start mb-1">
+                                <h3 class="font-bold text-lg dark:text-white">${hotel.name}</h3>
+                                <span class="text-red-500 dark:text-red-400 font-bold">¥${hotel.price.toLocaleString()}<span class="text-xs text-gray-400 dark:text-gray-500 font-normal"> /晚</span></span>
+                            </div>
+                            <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">${hotel.desc}</p>
+                            
+                            <div class="flex items-center justify-between bg-gray-50 dark:bg-gray-700 p-2 rounded-xl">
+                                <span class="text-sm font-medium text-gray-600 dark:text-gray-300 pl-2">投入籌碼：</span>
+                                <div class="flex items-center space-x-3 pr-1">
+                                    <button onclick="window.vote('${key}', -1)" class="w-9 h-9 rounded-full bg-white dark:bg-gray-600 border border-gray-200 dark:border-gray-500 text-gray-600 dark:text-gray-200 shadow-sm flex justify-center items-center active:scale-90 transition-transform"><i class="fa-solid fa-minus text-sm"></i></button>
+                                    <span class="font-bold text-blue-600 dark:text-blue-400 w-5 text-center text-lg">${myVoteCount}</span>
+                                    <button onclick="window.vote('${key}', 1)" class="w-9 h-9 rounded-full bg-blue-100 dark:bg-blue-900 border border-blue-200 dark:border-blue-700 text-blue-600 dark:text-blue-300 shadow-sm flex justify-center items-center active:scale-90 transition-transform"><i class="fa-solid fa-plus text-sm"></i></button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+            container.innerHTML = htmlStr;
+        }
+
+        window.vote = async function(itemId, change) {
+            let myCurrentVotes = window.state.myVotes[itemId] || 0;
+            
+            if (change < 0 && myCurrentVotes === 0) return; 
+            if (change > 0 && window.state.totalTokens === 0) {
+                Swal.fire({ icon: 'warning', title: '籌碼耗盡', text: '你的 10 枚雪花幣已經用完啦！', timer: 1500 });
+                return;
+            }
+
+            Swal.fire({
+                title: '傳輸中...',
+                text: '正在與 Firebase 雲端同步您的神聖一票',
+                allowOutsideClick: false,
+                didOpen: () => { Swal.showLoading(); }
+            });
+
+            try {
+                const updates = {};
+                updates[`hotels/${itemId}/totalVotes`] = increment(change);
+                
+                await update(ref(db), updates);
+
+                window.state.myVotes[itemId] = myCurrentVotes + change;
+                window.state.totalTokens -= change;
+                document.getElementById('token-balance').innerText = window.state.totalTokens;
+
+                Swal.close();
+
+            } catch (error) {
+                console.error("投票失敗:", error);
+                Swal.fire({ icon: 'error', title: '斷線啦', text: '網路不穩，投票失敗，請重試！' });
+            }
+        }
+
+        window.switchTab = function(tabId) {
+             ['voting', 'timeline', 'bill'].forEach(id => {
+                document.getElementById(`tab-${id}`).classList.add('hidden');
+            });
+            document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                if(btn.dataset.tab === tabId) {
+                    btn.className = `nav-btn flex flex-col items-center flex-1 py-1 rounded-lg active:bg-gray-100 dark:active:bg-gray-700 transition-colors text-blue-600 dark:text-blue-400`;
+                } else {
+                    btn.className = `nav-btn flex flex-col items-center flex-1 py-1 rounded-lg active:bg-gray-100 dark:active:bg-gray-700 transition-colors text-gray-400 dark:text-gray-500`;
+                }
+            });
+        }
+        
+        window.toggleDarkMode = function() {
+            const html = document.documentElement;
+            const icon = document.getElementById('theme-icon');
+            if (html.classList.contains('dark')) {
+                html.classList.remove('dark');
+                icon.classList.remove('fa-sun');
+                icon.classList.add('fa-moon');
+            } else {
+                html.classList.add('dark');
+                icon.classList.remove('fa-moon');
+                icon.classList.add('fa-sun');
+            }
+        }
+        
+        window.copyBillMessage = function() {
+            const msg = `【${window.state.nickname || '雪友'}的滑雪帳單】\n✈️ 機票：$15,400\n🏨 住宿：$8,200\n🎫 纜車：$4,500\n🚌 交通：$2,100\n💰 總計：NT$ 30,200\n\n🏦 請匯款至：(代碼 808) 1234-567-890123\n🙏 感謝大德，期待一起滑雪！`;
+            navigator.clipboard.writeText(msg).then(() => {
+                Swal.fire({ icon: 'success', title: '複製成功！', text: '快去 LINE 群組貼上討債吧！', timer: 2000 });
+            }).catch(err => {
+                Swal.fire({ icon: 'error', title: '複製失敗', text: '請手動複製。' });
+            });
+        }
+    </script>
+</body>
+</html>
