@@ -156,31 +156,32 @@ class SkiApp {
         });
     }
 
+    // 處理投票邏輯 (優化 UX 版：移除 Loading 彈窗，體驗極致絲滑)
     async vote(itemId, change) {
         let myCurrentVotes = this.state.myVotes[itemId] || 0;
         
+        // 防呆機制 1：不能扣成負的
         if (change < 0 && myCurrentVotes === 0) return; 
+        
+        // 防呆機制 2：代幣用光
         if (change > 0 && this.state.totalTokens === 0) {
             Swal.fire({ icon: 'warning', title: '籌碼耗盡', text: '你的 10 枚雪花幣已經用完啦！', timer: 1500 });
             return;
         }
 
-        Swal.fire({
-            title: '傳輸中...',
-            text: '正在與 Firebase 雲端同步您的神聖一票',
-            allowOutsideClick: false,
-            didOpen: () => { Swal.showLoading(); }
-        });
+        // 🛑 大師已將「傳輸中...」的 SweetAlert 彈窗移除，不再干擾連續點擊
 
         try {
+            // 背景默默傳送給 Firebase
             await this.db.submitVote(itemId, change);
             
+            // 扣除或增加本地代幣狀態，畫面數字會透過 UI Manager 與監聽器瞬間更新
             this.state.myVotes[itemId] = myCurrentVotes + change;
             this.state.totalTokens -= change;
             this.ui.updateTokenDisplay(this.state.totalTokens);
 
-            Swal.close();
         } catch (error) {
+            // 只有在真的發生錯誤時，才跳出提示干擾使用者
             console.error("投票失敗:", error);
             Swal.fire({ icon: 'error', title: '斷線啦', text: '網路不穩，投票失敗，請重試！' });
         }
