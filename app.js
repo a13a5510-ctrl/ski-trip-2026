@@ -10,19 +10,12 @@ class FirebaseService {
             apiKey: "AIzaSyD-mC8R_WvYV_7f2H9u_QyT_XfR-fX_k",
             authDomain: "ski-dashboard-2026-c146e.firebaseapp.com",
             databaseURL: "https://ski-dashboard-2026-default-rtdb.firebaseio.com",
-            projectId: "ski-dashboard-2026-c146e",
-            storageBucket: "ski-dashboard-2026-c146e.firebasestorage.app",
-            messagingSenderId: "364506305602",
-            appId: "1:364506305602:web:9349e54a6136be42858d4e"
+            projectId: "ski-dashboard-2026-c146e"
         };
         this.db = getDatabase(initializeApp(firebaseConfig));
     }
-
     listenToHotels(callback) { onValue(ref(this.db, `${TRIP_ID}/hotels`), (s) => callback(s.val() || {})); }
-    
-    // 🌟 新增：監聽雲端的動態行程表
     listenToTimeline(callback) { onValue(ref(this.db, `${TRIP_ID}/timeline`), (s) => callback(s.val() || null)); }
-
     async submitVote(hotelId, change) { return await update(ref(this.db, `${TRIP_ID}/hotels/${hotelId}`), { totalVotes: increment(change) }); }
 }
 
@@ -32,41 +25,69 @@ class UIManager {
             loginScreen: document.getElementById('login-screen'), mainApp: document.getElementById('main-app'),
             greeting: document.getElementById('user-greeting'), tokenBalance: document.getElementById('token-balance'),
             hotelsContainer: document.getElementById('hotels-container'), timelineContainer: document.querySelector('#tab-timeline .border-l-2'),
-            billDetails: document.getElementById('bill-details'), peopleCount: document.getElementById('people-count'), chartDom: document.getElementById('voting-chart')
+            billDetails: document.getElementById('bill-details'), peopleCount: document.getElementById('people-count'), 
+            chartDom: document.getElementById('voting-chart'), mapDom: document.getElementById('hotel-map')
         };
         this.chartInstance = null; 
+        
+        // 🌟 新增地圖實例
+        this.mapInstance = null;
+        this.mapMarkers = [];
     }
 
     transitionToApp(name) {
         this.elements.greeting.innerText = `嗨，${name}`; this.elements.loginScreen.style.opacity = '0';
         setTimeout(() => { this.elements.loginScreen.style.display = 'none'; this.elements.mainApp.classList.remove('hidden'); }, 300);
     }
-
     updateTokens(count) { this.elements.tokenBalance.innerText = count; }
 
     renderChart(data) {
         if (!this.elements.chartDom) return;
-        const isDark = document.documentElement.classList.contains('dark');
-        const textColor = isDark ? '#e5e7eb' : '#374151';
-
-        if (!this.chartInstance) {
-            this.chartInstance = echarts.init(this.elements.chartDom);
-            window.addEventListener('resize', () => this.chartInstance.resize());
-        }
-
+        const isDark = document.documentElement.classList.contains('dark'); const textColor = isDark ? '#e5e7eb' : '#374151';
+        if (!this.chartInstance) { this.chartInstance = echarts.init(this.elements.chartDom); window.addEventListener('resize', () => this.chartInstance.resize()); }
         const chartData = Object.values(data).filter(h => !h.is_deleted).map(h => ({ name: h.name, value: h.totalVotes || 0 })).sort((a, b) => a.value - b.value);
-
         this.chartInstance.setOption({
             backgroundColor: 'transparent', grid: { top: 10, bottom: 20, left: 10, right: 30, containLabel: true },
             xAxis: { type: 'value', show: false },
             yAxis: { type: 'category', data: chartData.map(d => d.name), axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: textColor, width: 100, overflow: 'truncate' } },
-            series: [{
-                type: 'bar', data: chartData.map(d => d.value), label: { show: true, position: 'right', color: '#3b82f6', fontWeight: 'bold' },
-                itemStyle: { color: new echarts.graphic.LinearGradient(1, 0, 0, 0, [{ offset: 0, color: '#3b82f6' }, { offset: 1, color: '#60a5fa' }]), borderRadius: [0, 4, 4, 0] },
-                barWidth: '50%', realtimeSort: true 
-            }],
+            series: [{ type: 'bar', data: chartData.map(d => d.value), label: { show: true, position: 'right', color: '#3b82f6', fontWeight: 'bold' }, itemStyle: { color: new echarts.graphic.LinearGradient(1, 0, 0, 0, [{ offset: 0, color: '#3b82f6' }, { offset: 1, color: '#60a5fa' }]), borderRadius: [0, 4, 4, 0] }, barWidth: '50%', realtimeSort: true }],
             animationDuration: 500, animationEasing: 'cubicOut'
         });
+    }
+
+    // 🌟 新增：畫出戰略地圖
+    renderMap(data) {
+        if (!this.elements.mapDom) return;
+        
+        // 1. 初始化地圖 (預設視角: 日本北海道)
+        if (!this.mapInstance) {
+            this.mapInstance = L.map('hotel-map').setView([43.06, 141.35], 6);
+            // 使用淺色系的 CartoDB 圖磚，讓地圖看起來更高級乾淨
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+                attribution: '&copy; OpenStreetMap'
+            }).addTo(this.mapInstance);
+        }
+
+        // 2. 清除舊的圖釘
+        this.mapMarkers.forEach(m => this.mapInstance.removeLayer(m));
+        this.mapMarkers = [];
+
+        // 3. 放上新的圖釘
+        const bounds = [];
+        Object.values(data).forEach(hotel => {
+            // 如果被刪除、或是沒有輸入座標，就不畫在地圖上
+            if (hotel.is_deleted || !hotel.lat || !hotel.lng) return;
+            
+            const marker = L.marker([hotel.lat, hotel.lng]).addTo(this.mapInstance);
+            marker.bindPopup(`<b class="text-blue-600">${hotel.name}</b><br>¥${hotel.price.toLocaleString()}`);
+            this.mapMarkers.push(marker);
+            bounds.push([hotel.lat, hotel.lng]);
+        });
+
+        // 4. 自動縮放視野，讓所有圖釘都能塞進畫面裡
+        if (bounds.length > 0) {
+            this.mapInstance.fitBounds(bounds, { padding: [20, 20], maxZoom: 14 });
+        }
     }
 
     renderHotels(data, myVotes) {
@@ -97,13 +118,7 @@ class UIManager {
                     <div class="flex-1"><div class="font-bold text-sm">${ev.title}</div><div class="text-xs text-gray-500 flex justify-between mt-0.5"><span>${ev.desc}</span><span class="font-bold">${ev.time}</span></div></div>
                 </div>
             `).join('');
-            html += `
-                <div class="relative pl-6 mb-8">
-                    <div class="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-blue-500 border-4 border-gray-50 dark:border-gray-900 shadow"></div>
-                    <h3 class="font-bold text-blue-600 dark:text-blue-400 mb-1 text-lg">Day ${day.day} 行程</h3>
-                    <p class="text-xs text-gray-400 mb-3">${day.date}</p>
-                    ${events}
-                </div>`;
+            html += `<div class="relative pl-6 mb-8"><div class="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-blue-500 border-4 border-gray-50 dark:border-gray-900 shadow"></div><h3 class="font-bold text-blue-600 dark:text-blue-400 mb-1 text-lg">Day ${day.day} 行程</h3><p class="text-xs text-gray-400 mb-3">${day.date}</p>${events}</div>`;
         });
         this.elements.timelineContainer.innerHTML = html;
     }
@@ -133,7 +148,12 @@ class UIManager {
         ['voting', 'timeline', 'bill'].forEach(id => document.getElementById(`tab-${id}`).classList.add('hidden'));
         document.getElementById(`tab-${tabId}`).classList.remove('hidden');
         document.querySelectorAll('.nav-btn').forEach(btn => { btn.classList.toggle('text-blue-600', btn.dataset.tab === tabId); btn.classList.toggle('text-gray-400', btn.dataset.tab !== tabId); });
-        if (tabId === 'voting' && this.chartInstance) setTimeout(() => this.chartInstance.resize(), 100);
+        
+        // 🌟 確保切換回投票頁時，地圖與圖表不會破版
+        if (tabId === 'voting') {
+            if (this.chartInstance) setTimeout(() => this.chartInstance.resize(), 100);
+            if (this.mapInstance) setTimeout(() => this.mapInstance.invalidateSize(), 100);
+        }
     }
 }
 
@@ -147,41 +167,28 @@ class SkiApp {
         };
         this.service = new FirebaseService();
         this.ui = new UIManager();
-        
-        // 🛑 大師：寫死的行程表已徹底刪除，完全交給雲端處理！
-
-        window.addEventListener('DOMContentLoaded', () => {
-            if (this.state.nickname) { document.getElementById('nickname-input').value = this.state.nickname; this.login(); }
-        });
+        window.addEventListener('DOMContentLoaded', () => { if (this.state.nickname) { document.getElementById('nickname-input').value = this.state.nickname; this.login(); } });
     }
 
     login() {
         const input = document.getElementById('nickname-input').value.trim();
         if (!input) return Swal.fire('徒兒！', '請輸入暱稱', 'warning');
         
-        this.state.nickname = input;
-        localStorage.setItem('ski_username', input);
-        this.ui.transitionToApp(input);
-        this.ui.updateTokens(this.state.tokens);
+        this.state.nickname = input; localStorage.setItem('ski_username', input);
+        this.ui.transitionToApp(input); this.ui.updateTokens(this.state.tokens);
         
         const offHotels = JSON.parse(localStorage.getItem('ski_offline_hotels')); if (offHotels) this.processHotelData(offHotels);
         const offTimeline = JSON.parse(localStorage.getItem('ski_offline_timeline')); if (offTimeline) this.processTimelineData(offTimeline);
 
-        // 監聽飯店
-        this.service.listenToHotels((data) => {
-            localStorage.setItem('ski_offline_hotels', JSON.stringify(data));
-            this.processHotelData(data);
-        });
-
-        // 🌟 新增：監聽雲端行程表
-        this.service.listenToTimeline((data) => {
-            localStorage.setItem('ski_offline_timeline', JSON.stringify(data || {}));
-            this.processTimelineData(data);
-        });
+        this.service.listenToHotels((data) => { localStorage.setItem('ski_offline_hotels', JSON.stringify(data)); this.processHotelData(data); });
+        this.service.listenToTimeline((data) => { localStorage.setItem('ski_offline_timeline', JSON.stringify(data || {})); this.processTimelineData(data); });
     }
 
     processHotelData(data) {
-        this.ui.renderHotels(data, this.state.myVotes); this.ui.renderChart(data); 
+        this.ui.renderHotels(data, this.state.myVotes); 
+        this.ui.renderChart(data); 
+        this.ui.renderMap(data); // 🌟 啟動地圖渲染魔法
+        
         let maxVotes = -1; this.state.topHotel = null; 
         Object.values(data).forEach(hotel => {
             if (hotel.is_deleted) return;
@@ -191,33 +198,21 @@ class SkiApp {
         this.triggerBillUpdate();
     }
 
-    // 🌟 新增：將散落的 Firebase 節點重組為有順序的天數陣列，並加上華麗樣式
     processTimelineData(data) {
-        if (!data || Object.keys(data).length === 0) {
-             this.ui.elements.timelineContainer.innerHTML = '<div class="text-gray-400 text-center py-10"><i class="fa-solid fa-person-digging text-3xl mb-3 block"></i>管理員尚在安排行程中...</div>';
-             return;
-        }
-        
+        if (!data || Object.keys(data).length === 0) { this.ui.elements.timelineContainer.innerHTML = '<div class="text-gray-400 text-center py-10"><i class="fa-solid fa-person-digging text-3xl mb-3 block"></i>管理員尚在安排行程中...</div>'; return; }
         const daysMap = {};
         Object.values(data).forEach(ev => {
             if (!daysMap[ev.day]) daysMap[ev.day] = { day: ev.day, date: ev.date, events: [] };
-            
-            // 根據不同 Icon 給予對應的主題顏色 (支援深色模式)
             let color = 'text-blue-500'; let bg = 'bg-blue-100 dark:bg-blue-900/30';
             if(ev.icon === 'fa-bus') { color = 'text-green-500'; bg = 'bg-green-100 dark:bg-green-900/30'; }
             else if(ev.icon === 'fa-hotel') { color = 'text-purple-500'; bg = 'bg-purple-100 dark:bg-purple-900/30'; }
             else if(ev.icon === 'fa-person-snowboarding') { color = 'text-orange-500'; bg = 'bg-orange-100 dark:bg-orange-900/30'; }
             else if(ev.icon === 'fa-utensils') { color = 'text-yellow-600'; bg = 'bg-yellow-100 dark:bg-yellow-900/30'; }
             else if(ev.icon === 'fa-flag') { color = 'text-red-500'; bg = 'bg-red-100 dark:bg-red-900/30'; }
-
             daysMap[ev.day].events.push({ ...ev, color, bg });
         });
-
-        // 轉換為陣列，依據天數排序
         const itinerary = Object.values(daysMap).sort((a, b) => a.day - b.day);
-        // 每日裡面的事件，依據時間排序
         itinerary.forEach(dayObj => dayObj.events.sort((a, b) => a.time.localeCompare(b.time)));
-        
         this.ui.renderTimeline(itinerary);
     }
 
@@ -234,9 +229,7 @@ class SkiApp {
         this.state.myVotes[id] = currentVal + change; this.state.tokens -= change;
         localStorage.setItem('ski_tokens', this.state.tokens); localStorage.setItem('ski_my_votes', JSON.stringify(this.state.myVotes));
         this.ui.updateTokens(this.state.tokens);
-
-        try { await this.service.submitVote(id, change); } 
-        catch (err) { this.state.myVotes[id] = currentVal; this.state.tokens += change; this.ui.updateTokens(this.state.tokens); Swal.fire('斷線', '投票失敗請重試', 'error'); }
+        try { await this.service.submitVote(id, change); } catch (err) { this.state.myVotes[id] = currentVal; this.state.tokens += change; this.ui.updateTokens(this.state.tokens); Swal.fire('斷線', '投票失敗請重試', 'error'); }
     }
 
     copyBillMessage() {
