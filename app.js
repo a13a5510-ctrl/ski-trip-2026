@@ -1,8 +1,9 @@
-// app.js - 2026 日本滑雪戰情室 核心邏輯 (無地圖極速版)
+// app.js - 2026 日本滑雪戰情室 核心邏輯 (LIFF LINE 登入版)
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getDatabase, ref, onValue, update, increment } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
 const TRIP_ID = '2026_Japan';
+const LIFF_ID = '2009966916-2eO8R7Jn'; // 🌟 徒兒的專屬鑰匙
 
 class FirebaseService {
     constructor() {
@@ -23,16 +24,24 @@ class UIManager {
     constructor() {
         this.elements = {
             loginScreen: document.getElementById('login-screen'), mainApp: document.getElementById('main-app'),
-            greeting: document.getElementById('user-greeting'), tokenBalance: document.getElementById('token-balance'),
-            hotelsContainer: document.getElementById('hotels-container'), timelineContainer: document.querySelector('#tab-timeline .border-l-2'),
+            greeting: document.getElementById('user-greeting'), avatar: document.getElementById('user-avatar'),
+            tokenBalance: document.getElementById('token-balance'), hotelsContainer: document.getElementById('hotels-container'), 
+            timelineContainer: document.querySelector('#tab-timeline .border-l-2'),
             billDetails: document.getElementById('bill-details'), peopleCount: document.getElementById('people-count'), 
             chartDom: document.getElementById('voting-chart')
         };
         this.chartInstance = null; 
     }
 
-    transitionToApp(name) {
-        this.elements.greeting.innerText = `嗨，${name}`; this.elements.loginScreen.style.opacity = '0';
+    // 🌟 改寫：接收 LINE Profile 並顯示大頭貼
+    transitionToApp(profile) {
+        this.elements.greeting.innerText = `${profile.displayName}`; 
+        if (profile.pictureUrl) {
+            this.elements.avatar.src = profile.pictureUrl;
+            this.elements.avatar.classList.remove('hidden');
+        }
+        
+        this.elements.loginScreen.style.opacity = '0';
         setTimeout(() => { 
             this.elements.loginScreen.style.display = 'none'; 
             this.elements.mainApp.classList.remove('hidden'); 
@@ -116,7 +125,6 @@ class UIManager {
             btn.classList.toggle('text-blue-600', btn.dataset.tab === tabId); 
             btn.classList.toggle('text-gray-400', btn.dataset.tab !== tabId); 
         });
-        
         if (tabId === 'voting') {
             if (this.chartInstance) setTimeout(() => this.chartInstance.resize(), 100);
         }
@@ -126,7 +134,7 @@ class UIManager {
 class SkiApp {
     constructor() {
         this.state = {
-            nickname: localStorage.getItem('ski_username') || "",
+            lineProfile: null, // 🌟 儲存使用者的 LINE 資訊
             tokens: parseInt(localStorage.getItem('ski_tokens')) || 10,
             myVotes: JSON.parse(localStorage.getItem('ski_my_votes')) || {},
             topHotel: null, currency: 'TWD', peopleCount: 4, currentBillData: null 
@@ -134,17 +142,58 @@ class SkiApp {
         this.service = new FirebaseService();
         this.ui = new UIManager();
 
-        window.addEventListener('DOMContentLoaded', () => {
-            if (this.state.nickname) { document.getElementById('nickname-input').value = this.state.nickname; this.login(); }
-        });
+        // 網頁一開，立刻啟動 LINE 連線陣法！
+        this.initLiff();
     }
 
-    login() {
-        const input = document.getElementById('nickname-input').value.trim();
-        if (!input) return Swal.fire('徒兒！', '請輸入暱稱', 'warning');
+    // 🌟 新增：LIFF 初始化邏輯
+    async initLiff() {
+        const loadingText = document.getElementById('liff-loading');
+        const loginBtn = document.getElementById('liff-login-btn');
         
-        this.state.nickname = input; localStorage.setItem('ski_username', input);
-        this.ui.transitionToApp(input); this.ui.updateTokens(this.state.tokens);
+        // 斷網求生術：如果沒有網路，而且大腦裡有存過大頭貼，直接強迫登入！
+        const savedProfile = JSON.parse(localStorage.getItem('ski_line_profile'));
+        if (!navigator.onLine && savedProfile) {
+            console.log("極地狀態：載入歷史 LINE 紀錄");
+            this.handleLineLogin(savedProfile);
+            return;
+        }
+
+        try {
+            await liff.init({ liffId: LIFF_ID });
+
+            // 檢查是否已經在 LINE App 內或是已經在瀏覽器登入過
+            if (liff.isLoggedIn()) {
+                const profile = await liff.getProfile();
+                localStorage.setItem('ski_line_profile', JSON.stringify(profile)); // 存入戰備記憶體
+                this.handleLineLogin(profile);
+            } else {
+                // 如果沒登入，隱藏 Loading，秀出綠色的「LINE 登入」按鈕
+                loadingText.classList.add('hidden');
+                loginBtn.classList.remove('hidden');
+            }
+        } catch (err) {
+            console.error("LIFF 啟動失敗", err);
+            loadingText.innerText = "連線異常，請重新整理";
+            // 萬一 LIFF 真的掛掉，用舊的名字頂替
+            if (savedProfile) {
+                this.handleLineLogin(savedProfile);
+            }
+        }
+    }
+
+    // 🌟 按下登入按鈕時呼叫
+    loginWithLine() {
+        if (!liff.isLoggedIn()) {
+            liff.login(); // 這會自動跳轉去 LINE 的認證網頁
+        }
+    }
+
+    // 🌟 登入成功後的核心流程
+    handleLineLogin(profile) {
+        this.state.lineProfile = profile;
+        this.ui.transitionToApp(profile); 
+        this.ui.updateTokens(this.state.tokens);
         
         const offHotels = JSON.parse(localStorage.getItem('ski_offline_hotels')); if (offHotels) this.processHotelData(offHotels);
         const offTimeline = JSON.parse(localStorage.getItem('ski_offline_timeline')); if (offTimeline) this.processTimelineData(offTimeline);
@@ -203,12 +252,14 @@ class SkiApp {
     copyBillMessage() {
         if (!this.state.currentBillData) return;
         const b = this.state.currentBillData; const f = (val) => `${b.sym} ` + Math.round(val * b.rate).toLocaleString();
-        navigator.clipboard.writeText(`【${this.state.nickname}的滑雪帳單 (共 ${this.state.peopleCount} 人分攤)】\n✈️ 機票：${f(b.flightAA)}\n🎫 纜車：${f(b.liftAA)}\n🚌 包車：${f(b.transportAA)}\n🏨 住宿(${b.hotelName})：${f(b.hotelAA)}\n💰 每人應付：${f(b.totalAA)}\n\n🏦 請匯款至：(代碼 808) 1234-567-890123\n🙏 期待一起滑雪！`).then(() => Swal.fire('成功', '動態帳單已複製', 'success'));
+        const userName = this.state.lineProfile ? this.state.lineProfile.displayName : '雪友';
+        navigator.clipboard.writeText(`【${userName}的滑雪帳單 (共 ${this.state.peopleCount} 人分攤)】\n✈️ 機票：${f(b.flightAA)}\n🎫 纜車：${f(b.liftAA)}\n🚌 包車：${f(b.transportAA)}\n🏨 住宿(${b.hotelName})：${f(b.hotelAA)}\n💰 每人應付：${f(b.totalAA)}\n\n🏦 請匯款至：(代碼 808) 1234-567-890123\n🙏 期待一起滑雪！`).then(() => Swal.fire('成功', '動態帳單已複製', 'success'));
     }
 }
 
 const app = new SkiApp(); window.app = app; 
-window.login = () => app.login(); window.switchTab = (id) => app.ui.switchTab(id); window.copyBillMessage = () => app.copyBillMessage();
+window.loginWithLine = () => app.loginWithLine(); // 🌟 給按鈕呼叫的
+window.switchTab = (id) => app.ui.switchTab(id); window.copyBillMessage = () => app.copyBillMessage();
 window.toggleDarkMode = () => {
     document.documentElement.classList.toggle('dark');
     document.getElementById('theme-icon').classList.toggle('fa-moon'); document.getElementById('theme-icon').classList.toggle('fa-sun');
