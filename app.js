@@ -30,14 +30,22 @@ class UIManager {
         };
         this.chartInstance = null; 
         
-        // 🌟 新增地圖實例
         this.mapInstance = null;
         this.mapMarkers = [];
+        this.latestMapData = null; // 🌟 戰備記憶體：專門用來暫存最新的地圖資料
     }
 
     transitionToApp(name) {
         this.elements.greeting.innerText = `嗨，${name}`; this.elements.loginScreen.style.opacity = '0';
-        setTimeout(() => { this.elements.loginScreen.style.display = 'none'; this.elements.mainApp.classList.remove('hidden'); }, 300);
+        setTimeout(() => { 
+            this.elements.loginScreen.style.display = 'none'; 
+            this.elements.mainApp.classList.remove('hidden'); 
+            
+            // 🌟 登入動畫(300ms)完全結束，畫面 100% 展開後，才正式顯化地圖！
+            if (this.latestMapData) {
+                this.executeMapRender(this.latestMapData);
+            }
+        }, 300);
     }
     updateTokens(count) { this.elements.tokenBalance.innerText = count; }
 
@@ -55,53 +63,47 @@ class UIManager {
         });
     }
 
-    // 🌟 畫出戰略地圖 (終極防彈版：解決所有灰色崩潰問題)
+    // 🌟 攔截器：資料進來時先存起來，只有畫面可見時才畫地圖
     renderMap(data) {
+        this.latestMapData = data; // 記下最新狀態
         if (!this.elements.mapDom) return;
         
-        // 1. 初始化地圖與天眼監視器
+        // 如果地圖容器高度是 0（代表還在登入畫面，或是切換到了其他頁籤），直接放棄執行，保護 Leaflet！
+        if (this.elements.mapDom.offsetHeight === 0) return;
+
+        // 如果可見，就直接畫
+        this.executeMapRender(data);
+    }
+
+    // 🌟 實際負責畫地圖的苦力工人
+    executeMapRender(data) {
         if (!this.mapInstance) {
             this.mapInstance = L.map('hotel-map').setView([43.06, 141.35], 6);
             L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
                 attribution: '&copy; OpenStreetMap'
             }).addTo(this.mapInstance);
-
-            // 👁️ 天眼監視器：當地圖從「隱藏」變成「顯示」時，自動修復破圖並對焦！
-            const observer = new ResizeObserver(() => {
-                // 只有當容器有高度時，才執行渲染
-                if (this.mapInstance && this.elements.mapDom.offsetHeight > 0) {
-                    this.mapInstance.invalidateSize();
-                    if (this.currentBounds && this.currentBounds.length > 0) {
-                        this.mapInstance.fitBounds(this.currentBounds, { padding: [20, 20], maxZoom: 14 });
-                    }
-                }
-            });
-            observer.observe(this.elements.mapDom);
         }
 
-        // 2. 清除舊圖釘
-        if (this.mapMarkers) {
-            this.mapMarkers.forEach(m => this.mapInstance.removeLayer(m));
-        }
+        // 清除舊圖釘
+        this.mapMarkers.forEach(m => this.mapInstance.removeLayer(m));
         this.mapMarkers = [];
-        this.currentBounds = []; // 儲存目前的邊界
+        const bounds = [];
 
-        // 3. 收集座標與放置新圖釘
         Object.values(data).forEach(hotel => {
             if (hotel.is_deleted || !hotel.lat || !hotel.lng) return;
             const marker = L.marker([hotel.lat, hotel.lng]).addTo(this.mapInstance);
             marker.bindPopup(`<b class="text-blue-600">${hotel.name}</b><br>¥${hotel.price.toLocaleString()}`);
             this.mapMarkers.push(marker);
-            this.currentBounds.push([hotel.lat, hotel.lng]); // 記錄每一間飯店的座標
+            bounds.push([hotel.lat, hotel.lng]);
         });
 
-        // 4. 🛡️ 防彈機制：判斷地圖目前是否「可見」。只有可見時才立刻對焦！
-        // 如果目前是隱藏的，就什麼都不做，交給上面的 ResizeObserver 等顯示時再處理
-        if (this.elements.mapDom.offsetHeight > 0 && this.currentBounds.length > 0) {
-            setTimeout(() => {
-                this.mapInstance.fitBounds(this.currentBounds, { padding: [20, 20], maxZoom: 14 });
-            }, 100);
-        }
+        // 強制重新計算尺寸，並縮放視野
+        setTimeout(() => {
+            this.mapInstance.invalidateSize();
+            if (bounds.length > 0) {
+                this.mapInstance.fitBounds(bounds, { padding: [20, 20], maxZoom: 14 });
+            }
+        }, 100);
     }
 
     renderHotels(data, myVotes) {
@@ -161,14 +163,15 @@ class UIManager {
     switchTab(tabId) {
         ['voting', 'timeline', 'bill'].forEach(id => document.getElementById(`tab-${id}`).classList.add('hidden'));
         document.getElementById(`tab-${tabId}`).classList.remove('hidden');
-        document.querySelectorAll('.nav-btn').forEach(btn => { 
-            btn.classList.toggle('text-blue-600', btn.dataset.tab === tabId); 
-            btn.classList.toggle('text-gray-400', btn.dataset.tab !== tabId); 
-        });
+        document.querySelectorAll('.nav-btn').forEach(btn => { btn.classList.toggle('text-blue-600', btn.dataset.tab === tabId); btn.classList.toggle('text-gray-400', btn.dataset.tab !== tabId); });
         
-        // 切換回投票頁時，重新調整圖表尺寸。地圖現在全靠 ResizeObserver 自動處理！
         if (tabId === 'voting') {
             if (this.chartInstance) setTimeout(() => this.chartInstance.resize(), 100);
+            
+            // 🌟 從其他頁籤切換回來時，保證地圖重新渲染！
+            if (this.latestMapData) {
+                setTimeout(() => this.executeMapRender(this.latestMapData), 100);
+            }
         }
     }
 }
@@ -203,7 +206,7 @@ class SkiApp {
     processHotelData(data) {
         this.ui.renderHotels(data, this.state.myVotes); 
         this.ui.renderChart(data); 
-        this.ui.renderMap(data); // 🌟 啟動地圖渲染魔法
+        this.ui.renderMap(data); // 丟給攔截器處理
         
         let maxVotes = -1; this.state.topHotel = null; 
         Object.values(data).forEach(hotel => {
