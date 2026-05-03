@@ -10,22 +10,22 @@
 </head>
 <body class="bg-gray-900 text-gray-100 font-sans antialiased min-h-screen flex items-center justify-center p-4">
 
-    <div id="admin-panel" class="hidden w-full max-w-2xl bg-gray-800 rounded-2xl shadow-2xl border border-gray-700 overflow-hidden">
-        <div class="bg-gray-950 p-6 border-b border-gray-700 flex justify-between items-center">
+    <div id="admin-panel" class="hidden w-full max-w-2xl bg-gray-800 rounded-2xl shadow-2xl border border-gray-700 overflow-hidden my-8">
+        <div class="bg-gray-950 p-6 border-b border-gray-700 flex justify-between items-center sticky top-0 z-10">
             <h1 class="text-2xl font-black text-blue-500"><i class="fa-solid fa-terminal mr-2"></i>戰情室中央控制台</h1>
-            <a href="index.html" target="_blank" class="text-sm text-gray-400 hover:text-white underline">前往前台首頁 ➔</a>
+            <a href="index.html" target="_blank" class="text-sm text-gray-400 hover:text-white underline">前往前台 ➔</a>
         </div>
         
         <div class="p-8">
-            <h2 class="text-lg font-bold mb-4 text-gray-300">➕ 新增住宿候選 (2026 日本行)</h2>
+            <h2 class="text-lg font-bold mb-4 text-gray-300">➕ 新增住宿候選</h2>
             <form id="add-hotel-form" class="space-y-5 mb-8" onsubmit="window.submitNewHotel(event)">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <div><label class="block text-sm font-medium text-gray-400 mb-1">飯店名稱</label><input type="text" id="hotel-name" required class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none"></div>
-                    <div><label class="block text-sm font-medium text-gray-400 mb-1">每晚價格 (日幣)</label><input type="number" id="hotel-price" required class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none"></div>
+                    <div><label class="block text-sm font-medium text-gray-400 mb-1">飯店名稱</label><input type="text" id="hotel-name" required class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"></div>
+                    <div><label class="block text-sm font-medium text-gray-400 mb-1">每晚價格 (日幣)</label><input type="number" id="hotel-price" required class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"></div>
                 </div>
-                <div><label class="block text-sm font-medium text-gray-400 mb-1">距離與特色描述</label><input type="text" id="hotel-desc" placeholder="例如：走路 5 分鐘" required class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none"></div>
-                <div><label class="block text-sm font-medium text-gray-400 mb-1">封面圖片網址 (URL)</label><input type="url" id="hotel-image" placeholder="https://..." required class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white focus:outline-none"></div>
-                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-lg shadow-lg active:scale-95 transition-transform"><i class="fa-solid fa-cloud-arrow-up mr-2"></i> 發射至雲端</button>
+                <div><label class="block text-sm font-medium text-gray-400 mb-1">距離與特色描述</label><input type="text" id="hotel-desc" placeholder="例如：走路 5 分鐘" required class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"></div>
+                <div><label class="block text-sm font-medium text-gray-400 mb-1">封面圖片網址 (URL)</label><input type="url" id="hotel-image" placeholder="https://..." required class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"></div>
+                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-lg shadow-lg active:scale-95 transition-transform"><i class="fa-solid fa-cloud-arrow-up mr-2"></i> 發射住宿至雲端</button>
             </form>
 
             <div class="border-t border-gray-700 pt-6 mb-8">
@@ -35,15 +35,39 @@
                 </div>
             </div>
 
+            <div class="border-t border-gray-700 pt-6 mb-8">
+                <h2 class="text-lg font-bold mb-4 text-blue-400"><i class="fa-solid fa-clock mr-2"></i>⏳ 新增行程積木 (時光之柱)</h2>
+                <form id="add-timeline-form" class="space-y-4" onsubmit="window.submitNewTimeline(event)">
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div><label class="block text-sm text-gray-400 mb-1">第幾天 (數字)</label><input type="number" id="t-day" required class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white" value="1"></div>
+                        <div><label class="block text-sm text-gray-400 mb-1">日期</label><input type="text" id="t-date" required class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white" placeholder="2/10"></div>
+                        <div><label class="block text-sm text-gray-400 mb-1">時間</label><input type="time" id="t-time" required class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white"></div>
+                        <div>
+                            <label class="block text-sm text-gray-400 mb-1">分類圖示</label>
+                            <select id="t-icon" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white">
+                                <option value="fa-plane">✈️ 飛機航班</option>
+                                <option value="fa-bus">🚌 陸地交通</option>
+                                <option value="fa-hotel">🏨 飯店住宿</option>
+                                <option value="fa-person-snowboarding">🏂 激戰滑雪</option>
+                                <option value="fa-utensils">🍔 餐廳覓食</option>
+                                <option value="fa-flag">🚩 集合地</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div><label class="block text-sm text-gray-400 mb-1">標題</label><input type="text" id="t-title" required class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white" placeholder="星宇航空 JX800"></div>
+                        <div><label class="block text-sm text-gray-400 mb-1">描述 (選填)</label><input type="text" id="t-desc" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white" placeholder="TPE ➔ NRT"></div>
+                    </div>
+                    <button type="submit" class="w-full bg-blue-900/80 hover:bg-blue-700 border border-blue-600 text-white font-bold py-2 rounded-lg transition-transform active:scale-95"><i class="fa-solid fa-plus mr-2"></i>組裝行程積木</button>
+                </form>
+            </div>
+
             <div class="border-t border-red-900 pt-6">
                 <h2 class="text-lg font-bold mb-4 text-red-500"><i class="fa-solid fa-triangle-exclamation mr-2"></i>危險區域</h2>
-                <div class="flex gap-4">
-                    <button onclick="window.resetAllVotes()" class="flex-1 bg-red-900/50 hover:bg-red-800 text-red-300 border border-red-800 font-bold py-3 rounded-lg active:scale-95 transition-transform">
-                        <i class="fa-solid fa-rotate-left mr-2"></i> 票數全部歸零
-                    </button>
-                    <button onclick="window.deleteAllHotels()" class="flex-1 bg-red-700 hover:bg-red-600 text-white font-bold py-3 rounded-lg active:scale-95 transition-transform shadow-lg shadow-red-900/50">
-                        <i class="fa-solid fa-bomb mr-2"></i> 毀滅所有飯店
-                    </button>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <button onclick="window.resetAllVotes()" class="bg-red-900/50 hover:bg-red-800 text-red-300 border border-red-800 font-bold py-2 text-sm rounded-lg active:scale-95 transition-transform">票數歸零</button>
+                    <button onclick="window.clearTimeline()" class="bg-red-900/50 hover:bg-red-800 text-red-300 border border-red-800 font-bold py-2 text-sm rounded-lg active:scale-95 transition-transform">清空行程表</button>
+                    <button onclick="window.deleteAllHotels()" class="bg-red-700 hover:bg-red-600 text-white font-bold py-2 text-sm rounded-lg active:scale-95 transition-transform shadow-lg">毀滅所有飯店</button>
                 </div>
             </div>
         </div>
