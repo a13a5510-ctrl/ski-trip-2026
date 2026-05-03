@@ -55,7 +55,7 @@ class UIManager {
         });
     }
 
-    // 🌟 畫出戰略地圖 (絕對領域版：導入 ResizeObserver)
+    // 🌟 畫出戰略地圖 (終極防彈版：解決所有灰色崩潰問題)
     renderMap(data) {
         if (!this.elements.mapDom) return;
         
@@ -66,34 +66,42 @@ class UIManager {
                 attribution: '&copy; OpenStreetMap'
             }).addTo(this.mapInstance);
 
-            // 👁️ 天眼監視器 (ResizeObserver)
-            // 只要 #hotel-map 這個容器的大小發生任何變化（包含從隱藏變顯示），就強制 Leaflet 重新計算尺寸！
+            // 👁️ 天眼監視器：當地圖從「隱藏」變成「顯示」時，自動修復破圖並對焦！
             const observer = new ResizeObserver(() => {
-                this.mapInstance.invalidateSize();
+                // 只有當容器有高度時，才執行渲染
+                if (this.mapInstance && this.elements.mapDom.offsetHeight > 0) {
+                    this.mapInstance.invalidateSize();
+                    if (this.currentBounds && this.currentBounds.length > 0) {
+                        this.mapInstance.fitBounds(this.currentBounds, { padding: [20, 20], maxZoom: 14 });
+                    }
+                }
             });
             observer.observe(this.elements.mapDom);
         }
 
         // 2. 清除舊圖釘
-        this.mapMarkers.forEach(m => this.mapInstance.removeLayer(m));
+        if (this.mapMarkers) {
+            this.mapMarkers.forEach(m => this.mapInstance.removeLayer(m));
+        }
         this.mapMarkers = [];
+        this.currentBounds = []; // 儲存目前的邊界
 
         // 3. 收集座標與放置新圖釘
-        const bounds = [];
         Object.values(data).forEach(hotel => {
             if (hotel.is_deleted || !hotel.lat || !hotel.lng) return;
             const marker = L.marker([hotel.lat, hotel.lng]).addTo(this.mapInstance);
             marker.bindPopup(`<b class="text-blue-600">${hotel.name}</b><br>¥${hotel.price.toLocaleString()}`);
             this.mapMarkers.push(marker);
-            bounds.push([hotel.lat, hotel.lng]);
+            this.currentBounds.push([hotel.lat, hotel.lng]); // 記錄每一間飯店的座標
         });
 
-        // 4. 自動縮放視野 (給 100ms 讓圖釘安放好即可，不用再等 400ms 了)
-        setTimeout(() => {
-            if (bounds.length > 0) {
-                this.mapInstance.fitBounds(bounds, { padding: [20, 20], maxZoom: 14 });
-            }
-        }, 100);
+        // 4. 🛡️ 防彈機制：判斷地圖目前是否「可見」。只有可見時才立刻對焦！
+        // 如果目前是隱藏的，就什麼都不做，交給上面的 ResizeObserver 等顯示時再處理
+        if (this.elements.mapDom.offsetHeight > 0 && this.currentBounds.length > 0) {
+            setTimeout(() => {
+                this.mapInstance.fitBounds(this.currentBounds, { padding: [20, 20], maxZoom: 14 });
+            }, 100);
+        }
     }
 
     renderHotels(data, myVotes) {
