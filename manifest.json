@@ -1,0 +1,15 @@
+{
+  "name": "2026 日本滑雪戰情室",
+  "short_name": "滑雪戰情室",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#1f2937",
+  "theme_color": "#2563eb",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/6016/6016304.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
