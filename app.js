@@ -1,4 +1,4 @@
-// app.js - 2026 日本滑雪戰情室 核心邏輯
+// app.js - 2026 日本滑雪戰情室 核心邏輯 (無地圖極速版)
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getDatabase, ref, onValue, update, increment } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
@@ -26,12 +26,9 @@ class UIManager {
             greeting: document.getElementById('user-greeting'), tokenBalance: document.getElementById('token-balance'),
             hotelsContainer: document.getElementById('hotels-container'), timelineContainer: document.querySelector('#tab-timeline .border-l-2'),
             billDetails: document.getElementById('bill-details'), peopleCount: document.getElementById('people-count'), 
-            chartDom: document.getElementById('voting-chart'), mapDom: document.getElementById('hotel-map')
+            chartDom: document.getElementById('voting-chart')
         };
         this.chartInstance = null; 
-        
-        this.mapInstance = null;
-        this.latestMapData = null; // 🌟 記憶體：永遠保存最新進來的資料
     }
 
     transitionToApp(name) {
@@ -39,11 +36,9 @@ class UIManager {
         setTimeout(() => { 
             this.elements.loginScreen.style.display = 'none'; 
             this.elements.mainApp.classList.remove('hidden'); 
-            
-            // 🌟 登入動畫 (300ms) 完全結束後，直接召喚核彈地圖！
-            this.forcePaintMap();
         }, 300);
     }
+    
     updateTokens(count) { this.elements.tokenBalance.innerText = count; }
 
     renderChart(data) {
@@ -58,51 +53,6 @@ class UIManager {
             series: [{ type: 'bar', data: chartData.map(d => d.value), label: { show: true, position: 'right', color: '#3b82f6', fontWeight: 'bold' }, itemStyle: { color: new echarts.graphic.LinearGradient(1, 0, 0, 0, [{ offset: 0, color: '#3b82f6' }, { offset: 1, color: '#60a5fa' }]), borderRadius: [0, 4, 4, 0] }, barWidth: '50%', realtimeSort: true }],
             animationDuration: 500, animationEasing: 'cubicOut'
         });
-    }
-
-    renderMap(data) {
-        this.latestMapData = data; 
-        if (!this.elements.mapDom) return;
-        
-        // 只要畫面是打開的狀態，就重繪地圖
-        if (this.elements.mapDom.offsetHeight > 0) {
-            this.forcePaintMap();
-        }
-    }
-
-    // 🧨 大師的核彈級陣法：抹殺舊的，創造新的
-    forcePaintMap() {
-        if (!this.latestMapData || !this.elements.mapDom || this.elements.mapDom.offsetHeight === 0) return;
-
-        // 1. 核心奧義：如果地圖已經存在，徹底將它從記憶體中「銷毀」！
-        if (this.mapInstance) {
-            this.mapInstance.remove();
-            this.mapInstance = null;
-        }
-
-        // 2. 重新創造一個乾淨、無業障的全新地圖
-        this.mapInstance = L.map('hotel-map', {
-            zoomControl: true, // 開啟縮放按鈕
-            attributionControl: false // 隱藏版權文字讓畫面更高級
-        }).setView([43.06, 141.35], 6);
-
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png').addTo(this.mapInstance);
-
-        const bounds = [];
-        Object.values(this.latestMapData).forEach(hotel => {
-            if (hotel.is_deleted || !hotel.lat || !hotel.lng) return;
-            const marker = L.marker([hotel.lat, hotel.lng]).addTo(this.mapInstance);
-            marker.bindPopup(`<b class="text-blue-600">${hotel.name}</b><br>¥${hotel.price.toLocaleString()}`);
-            bounds.push([hotel.lat, hotel.lng]);
-        });
-
-        // 3. 安全對焦
-        if (bounds.length > 0) {
-            // 給予極短的 50ms 讓瀏覽器把圖釘畫好，再進行對焦
-            setTimeout(() => {
-                this.mapInstance.fitBounds(bounds, { padding: [20, 20], maxZoom: 14 });
-            }, 50);
-        }
     }
 
     renderHotels(data, myVotes) {
@@ -169,9 +119,6 @@ class UIManager {
         
         if (tabId === 'voting') {
             if (this.chartInstance) setTimeout(() => this.chartInstance.resize(), 100);
-            
-            // 🌟 從其他頁籤切換回來時，再次召喚核彈地圖！確保尺寸完美！
-            setTimeout(() => this.forcePaintMap(), 100);
         }
     }
 }
@@ -209,7 +156,6 @@ class SkiApp {
     processHotelData(data) {
         this.ui.renderHotels(data, this.state.myVotes); 
         this.ui.renderChart(data); 
-        this.ui.renderMap(data); // 丟給攔截器處理
         
         let maxVotes = -1; this.state.topHotel = null; 
         Object.values(data).forEach(hotel => {
