@@ -10,9 +10,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
-    
     <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-
     <link rel="stylesheet" href="style.css">
 </head>
 <body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-100 font-sans antialiased transition-colors duration-300">
@@ -25,15 +23,13 @@
             <div class="text-6xl mb-6 drop-shadow-md">🏂</div>
             <h1 class="text-3xl font-bold mb-2 text-gray-900 dark:text-white tracking-tight">2026 滑雪戰情室</h1>
             <p class="text-sm text-gray-500 dark:text-gray-400 mb-8 text-center">以 LINE 帳號快速認證登入<br>領取你的專屬雪花幣</p>
-            
-            <button id="liff-login-btn" onclick="window.loginWithLine()" class="hidden w-full bg-[#06C755] hover:bg-[#05b34c] text-white font-bold py-4 px-4 rounded-xl shadow-lg active:scale-95 text-lg flex justify-center items-center transition-transform">
-                <i class="fa-brands fa-line text-2xl mr-2"></i> 以 LINE 帳號登入
-            </button>
+            <button id="liff-login-btn" onclick="window.loginWithLine()" class="hidden w-full bg-[#06C755] hover:bg-[#05b34c] text-white font-bold py-4 px-4 rounded-xl shadow-lg active:scale-95 text-lg flex justify-center items-center transition-transform"><i class="fa-brands fa-line text-2xl mr-2"></i> 以 LINE 帳號登入</button>
             <p id="liff-loading" class="text-gray-500 text-sm flex items-center mt-4"><i class="fa-solid fa-spinner fa-spin mr-2"></i> 正在連線 LINE 總部...</p>
         </div>
 
-        <div id="main-app" class="hidden flex-1 flex flex-col h-screen">
-            <header class="bg-blue-600 dark:bg-blue-800 text-white pt-12 pb-5 px-6 rounded-b-3xl shadow-md z-10">
+        <div id="main-app" class="hidden flex-1 flex flex-col h-screen overflow-hidden">
+            
+            <header id="app-header" class="bg-blue-600 dark:bg-blue-800 text-white pt-12 pb-5 px-6 rounded-b-3xl shadow-md z-10 shrink-0">
                 <div class="flex justify-between items-center mb-2">
                     <div class="flex items-center">
                         <img id="user-avatar" src="" alt="avatar" class="w-8 h-8 rounded-full border-2 border-white mr-2 hidden object-cover shadow-sm">
@@ -44,18 +40,23 @@
                 <p class="text-sm text-blue-100 opacity-90 mt-1">請將雪花幣投給你最想去的行程</p>
             </header>
 
-            <main class="flex-1 overflow-y-auto no-scrollbar pb-24 bg-gray-50 dark:bg-gray-900">
+            <main class="flex-1 overflow-y-auto no-scrollbar bg-gray-50 dark:bg-gray-900">
                 
                 <div id="tab-voting" class="p-4 space-y-5">
-                    <h2 class="font-bold text-gray-700 dark:text-gray-200 mb-2 px-2 text-lg"><i class="fa-solid fa-fire text-orange-500 mr-2"></i>即時戰況分析</h2>
-                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-4 mb-4"><div id="voting-chart" class="w-full h-48"></div></div>
+                    <h2 class="font-bold text-gray-700 dark:text-gray-200 mb-2 px-2 text-lg cursor-pointer flex justify-between items-center bg-gray-200 dark:bg-gray-700 p-2 rounded-lg active:scale-95 transition" onclick="window.toggleChart()">
+                        <span><i class="fa-solid fa-fire text-orange-500 mr-2"></i>即時戰況分析</span>
+                        <i id="chart-toggle-icon" class="fa-solid fa-chevron-down text-gray-500"></i>
+                    </h2>
+                    <div id="chart-container" class="hidden bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-4 mb-4 transition-all">
+                        <div id="voting-chart" class="w-full h-48"></div>
+                    </div>
                     
                     <h2 class="font-bold text-gray-700 dark:text-gray-200 mb-2 px-2 text-lg"><i class="fa-solid fa-bed text-blue-500 mr-2"></i>住宿候選投票</h2>
                     <div id="hotels-container"></div>
                 </div>
 
                 <div id="tab-timeline" class="hidden p-5">
-                    <h2 class="font-bold text-gray-700 dark:text-gray-200 mb-6 text-lg"><i class="fa-solid fa-route text-blue-500 mr-2"></i>最終確認行程</h2>
+                    <h2 class="font-bold text-gray-700 dark:text-gray-200 mb-6 text-lg"><i class="fa-solid fa-route text-blue-500 mr-2"></i>最終確認行程 <span id="timeline-subtitle" class="text-sm text-blue-500 ml-2 font-medium"></span></h2>
                     <div class="relative border-l-2 border-blue-400 dark:border-blue-600 ml-3 space-y-8 pb-4"></div>
                 </div>
 
@@ -68,10 +69,9 @@
                         <button onclick="window.copyBillMessage()" class="w-full bg-gray-900 dark:bg-blue-600 hover:bg-gray-800 text-white py-4 rounded-xl font-bold shadow-lg active:scale-95"><i class="fa-regular fa-copy mr-2"></i> 複製請款訊息</button>
                     </div>
                 </div>
-
             </main>
 
-            <nav class="absolute bottom-0 w-full bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 pb-safe z-20">
+            <nav class="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 pb-safe z-20 shrink-0">
                 <div class="flex justify-around items-center h-16 px-2">
                     <button onclick="window.switchTab('voting')" class="nav-btn text-blue-600 flex flex-col items-center flex-1 py-1 rounded-lg" data-tab="voting"><i class="fa-solid fa-check-to-slot text-2xl mb-1"></i><span class="text-[10px] font-bold">海選投票</span></button>
                     <button onclick="window.switchTab('timeline')" class="nav-btn text-gray-400 flex flex-col items-center flex-1 py-1 rounded-lg" data-tab="timeline"><i class="fa-solid fa-route text-2xl mb-1"></i><span class="text-[10px] font-bold">行程表</span></button>
@@ -82,8 +82,6 @@
     </div>
 
     <script type="module" src="app.js"></script>
-    <script>
-        if ('serviceWorker' in navigator) { window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js').then(r=>console.log('SW OK')).catch(e=>console.log('SW ERR')); }); }
-    </script>
+    <script>if ('serviceWorker' in navigator) { window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js'); }); }</script>
 </body>
 </html>
