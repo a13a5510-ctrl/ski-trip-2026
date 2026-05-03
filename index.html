@@ -29,28 +29,21 @@
 
         <div id="main-app" class="hidden flex-1 flex flex-col h-full overflow-hidden">
             
-            <header id="app-header" class="bg-blue-600 dark:bg-blue-800 text-white pt-12 pb-5 px-6 rounded-b-3xl shadow-md z-10 shrink-0">
+            <header id="app-header" class="bg-blue-600 dark:bg-blue-800 text-white pt-12 pb-5 px-6 shadow-md z-10 shrink-0">
                 <div class="flex justify-between items-center mb-2">
-                    <div class="flex items-center">
-                        <img id="user-avatar" src="" alt="avatar" class="w-8 h-8 rounded-full border-2 border-white mr-2 hidden object-cover shadow-sm">
-                        <span id="user-greeting" class="font-bold text-xl">嗨，雪友</span>
-                    </div>
+                    <div class="flex items-center"><img id="user-avatar" src="" alt="avatar" class="w-8 h-8 rounded-full border-2 border-white mr-2 hidden object-cover shadow-sm"><span id="user-greeting" class="font-bold text-xl">嗨，雪友</span></div>
                     <div class="bg-blue-900 bg-opacity-40 px-3 py-1 rounded-full text-sm"><i class="fa-solid fa-snowflake text-blue-200 mr-2"></i>餘額: <strong id="token-balance" class="text-xl ml-1">10</strong></div>
                 </div>
-                <p class="text-sm text-blue-100 opacity-90 mt-1">請將雪花幣投給你最想去的行程</p>
             </header>
 
+            <div id="countdown-banner" class="hidden shrink-0 bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-center py-2 text-sm font-bold shadow-md z-10 flex justify-center items-center">
+                <i id="countdown-icon" class="fa-solid fa-hourglass-half fa-spin mr-2"></i> <span id="countdown-text">計算中...</span>
+            </div>
+
             <main class="flex-1 overflow-y-auto no-scrollbar bg-gray-50 dark:bg-gray-900 pb-24">
-                
                 <div id="tab-voting" class="p-4 space-y-5">
-                    <h2 class="font-bold text-gray-700 dark:text-gray-200 mb-2 px-2 text-lg cursor-pointer flex justify-between items-center bg-gray-200 dark:bg-gray-700 p-2 rounded-lg active:scale-95 transition" onclick="window.toggleChart()">
-                        <span><i class="fa-solid fa-fire text-orange-500 mr-2"></i>即時戰況分析</span>
-                        <i id="chart-toggle-icon" class="fa-solid fa-chevron-down text-gray-500"></i>
-                    </h2>
-                    <div id="chart-container" class="hidden bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-4 mb-4 transition-all">
-                        <div id="voting-chart" class="w-full h-48"></div>
-                    </div>
-                    
+                    <h2 class="font-bold text-gray-700 dark:text-gray-200 mb-2 px-2 text-lg cursor-pointer flex justify-between items-center bg-gray-200 dark:bg-gray-700 p-2 rounded-lg active:scale-95 transition" onclick="window.toggleChart()"><span><i class="fa-solid fa-fire text-orange-500 mr-2"></i>即時戰況分析</span><i id="chart-toggle-icon" class="fa-solid fa-chevron-down text-gray-500"></i></h2>
+                    <div id="chart-container" class="hidden bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-4 mb-4 transition-all"><div id="voting-chart" class="w-full h-48"></div></div>
                     <h2 class="font-bold text-gray-700 dark:text-gray-200 mb-2 px-2 text-lg"><i class="fa-solid fa-bed text-blue-500 mr-2"></i>住宿候選投票</h2>
                     <div id="hotels-container"></div>
                 </div>
@@ -61,13 +54,7 @@
                 </div>
 
                 <div id="tab-bill" class="hidden p-4">
-                    <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-md border border-gray-100 dark:border-gray-700 relative overflow-hidden">
-                        <div class="absolute top-0 right-0 w-32 h-32 bg-blue-50 dark:bg-gray-700 rounded-bl-full -z-10 opacity-50"></div>
-                        <div class="flex flex-col gap-4 mb-6 pb-6 border-b border-gray-100 dark:border-gray-700"><div class="flex justify-between items-center"><label class="font-bold text-gray-700 dark:text-gray-300"><i class="fa-solid fa-users text-blue-500 mr-2"></i>參與人數</label><div class="flex items-center bg-gray-100 dark:bg-gray-700 rounded-lg p-1"><button onclick="window.app.changePeople(-1)" class="w-8 h-8 rounded bg-white dark:bg-gray-600 shadow-sm">-</button><span id="people-count" class="w-10 text-center font-bold">4</span><button onclick="window.app.changePeople(1)" class="w-8 h-8 rounded bg-white dark:bg-gray-600 shadow-sm">+</button></div></div><div class="flex justify-between items-center"><label class="font-bold text-gray-700 dark:text-gray-300"><i class="fa-solid fa-coins text-yellow-500 mr-2"></i>結算幣值</label><div class="flex gap-1 bg-gray-100 dark:bg-gray-700 p-1 rounded-lg"><button onclick="window.app.setCurrency('JPY')" class="curr-btn px-3 py-1.5 rounded-md text-xs font-bold" data-curr="JPY">JPY</button><button onclick="window.app.setCurrency('TWD')" class="curr-btn px-3 py-1.5 rounded-md text-xs font-bold" data-curr="TWD">TWD</button><button onclick="window.app.setCurrency('HKD')" class="curr-btn px-3 py-1.5 rounded-md text-xs font-bold" data-curr="HKD">HKD</button></div></div></div>
-                        <h3 class="font-bold text-xl mb-4 text-center">個人 AA 預估明細</h3>
-                        <div id="bill-details" class="space-y-4 mb-8"></div>
-                        <button onclick="window.copyBillMessage()" class="w-full bg-gray-900 dark:bg-blue-600 hover:bg-gray-800 text-white py-4 rounded-xl font-bold shadow-lg active:scale-95"><i class="fa-regular fa-copy mr-2"></i> 複製請款訊息</button>
-                    </div>
+                    <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-md border border-gray-100 dark:border-gray-700 relative overflow-hidden"><div class="absolute top-0 right-0 w-32 h-32 bg-blue-50 dark:bg-gray-700 rounded-bl-full -z-10 opacity-50"></div><div class="flex flex-col gap-4 mb-6 pb-6 border-b border-gray-100 dark:border-gray-700"><div class="flex justify-between items-center"><label class="font-bold text-gray-700 dark:text-gray-300"><i class="fa-solid fa-users text-blue-500 mr-2"></i>參與人數</label><div class="flex items-center bg-gray-100 dark:bg-gray-700 rounded-lg p-1"><button onclick="window.app.changePeople(-1)" class="w-8 h-8 rounded bg-white dark:bg-gray-600 shadow-sm">-</button><span id="people-count" class="w-10 text-center font-bold">4</span><button onclick="window.app.changePeople(1)" class="w-8 h-8 rounded bg-white dark:bg-gray-600 shadow-sm">+</button></div></div><div class="flex justify-between items-center"><label class="font-bold text-gray-700 dark:text-gray-300"><i class="fa-solid fa-coins text-yellow-500 mr-2"></i>結算幣值</label><div class="flex gap-1 bg-gray-100 dark:bg-gray-700 p-1 rounded-lg"><button onclick="window.app.setCurrency('JPY')" class="curr-btn px-3 py-1.5 rounded-md text-xs font-bold" data-curr="JPY">JPY</button><button onclick="window.app.setCurrency('TWD')" class="curr-btn px-3 py-1.5 rounded-md text-xs font-bold" data-curr="TWD">TWD</button><button onclick="window.app.setCurrency('HKD')" class="curr-btn px-3 py-1.5 rounded-md text-xs font-bold" data-curr="HKD">HKD</button></div></div></div><h3 class="font-bold text-xl mb-4 text-center">個人 AA 預估明細</h3><div id="bill-details" class="space-y-4 mb-8"></div><button onclick="window.copyBillMessage()" class="w-full bg-gray-900 dark:bg-blue-600 hover:bg-gray-800 text-white py-4 rounded-xl font-bold shadow-lg active:scale-95"><i class="fa-regular fa-copy mr-2"></i> 複製請款訊息</button></div>
                 </div>
             </main>
 
@@ -80,7 +67,6 @@
             </nav>
         </div>
     </div>
-
     <script type="module" src="app.js"></script>
     <script>if ('serviceWorker' in navigator) { window.addEventListener('load', () => { navigator.serviceWorker.register('./sw.js'); }); }</script>
 </body>
