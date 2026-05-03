@@ -55,23 +55,30 @@ class UIManager {
         });
     }
 
-    // 🌟 畫出戰略地圖 (終極防禦版：解決灰色破圖問題)
+    // 🌟 畫出戰略地圖 (絕對領域版：導入 ResizeObserver)
     renderMap(data) {
         if (!this.elements.mapDom) return;
         
-        // 1. 初始化地圖
+        // 1. 初始化地圖與天眼監視器
         if (!this.mapInstance) {
             this.mapInstance = L.map('hotel-map').setView([43.06, 141.35], 6);
             L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
                 attribution: '&copy; OpenStreetMap'
             }).addTo(this.mapInstance);
+
+            // 👁️ 天眼監視器 (ResizeObserver)
+            // 只要 #hotel-map 這個容器的大小發生任何變化（包含從隱藏變顯示），就強制 Leaflet 重新計算尺寸！
+            const observer = new ResizeObserver(() => {
+                this.mapInstance.invalidateSize();
+            });
+            observer.observe(this.elements.mapDom);
         }
 
         // 2. 清除舊圖釘
         this.mapMarkers.forEach(m => this.mapInstance.removeLayer(m));
         this.mapMarkers = [];
 
-        // 3. 收集座標
+        // 3. 收集座標與放置新圖釘
         const bounds = [];
         Object.values(data).forEach(hotel => {
             if (hotel.is_deleted || !hotel.lat || !hotel.lng) return;
@@ -81,15 +88,12 @@ class UIManager {
             bounds.push([hotel.lat, hotel.lng]);
         });
 
-        // 🛡️ 終極時空防禦陣法：
-        // 等待 400 毫秒，確保前端的「登入淡出動畫」已經完全結束，
-        // 容器有了真實大小後，再叫地圖重新計算並縮放！
+        // 4. 自動縮放視野 (給 100ms 讓圖釘安放好即可，不用再等 400ms 了)
         setTimeout(() => {
-            this.mapInstance.invalidateSize();
             if (bounds.length > 0) {
                 this.mapInstance.fitBounds(bounds, { padding: [20, 20], maxZoom: 14 });
             }
-        }, 400);
+        }, 100);
     }
 
     renderHotels(data, myVotes) {
