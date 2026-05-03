@@ -31,8 +31,7 @@ class UIManager {
         this.chartInstance = null; 
         
         this.mapInstance = null;
-        this.mapMarkers = [];
-        this.latestMapData = null; // 🌟 戰備記憶體：專門用來暫存最新的地圖資料
+        this.latestMapData = null; // 🌟 記憶體：永遠保存最新進來的資料
     }
 
     transitionToApp(name) {
@@ -41,10 +40,8 @@ class UIManager {
             this.elements.loginScreen.style.display = 'none'; 
             this.elements.mainApp.classList.remove('hidden'); 
             
-            // 🌟 登入動畫(300ms)完全結束，畫面 100% 展開後，才正式顯化地圖！
-            if (this.latestMapData) {
-                this.executeMapRender(this.latestMapData);
-            }
+            // 🌟 登入動畫 (300ms) 完全結束後，直接召喚核彈地圖！
+            this.forcePaintMap();
         }, 300);
     }
     updateTokens(count) { this.elements.tokenBalance.innerText = count; }
@@ -63,47 +60,49 @@ class UIManager {
         });
     }
 
-    // 🌟 攔截器：資料進來時先存起來，只有畫面可見時才畫地圖
     renderMap(data) {
-        this.latestMapData = data; // 記下最新狀態
+        this.latestMapData = data; 
         if (!this.elements.mapDom) return;
         
-        // 如果地圖容器高度是 0（代表還在登入畫面，或是切換到了其他頁籤），直接放棄執行，保護 Leaflet！
-        if (this.elements.mapDom.offsetHeight === 0) return;
-
-        // 如果可見，就直接畫
-        this.executeMapRender(data);
+        // 只要畫面是打開的狀態，就重繪地圖
+        if (this.elements.mapDom.offsetHeight > 0) {
+            this.forcePaintMap();
+        }
     }
 
-    // 🌟 實際負責畫地圖的苦力工人
-    executeMapRender(data) {
-        if (!this.mapInstance) {
-            this.mapInstance = L.map('hotel-map').setView([43.06, 141.35], 6);
-            L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-                attribution: '&copy; OpenStreetMap'
-            }).addTo(this.mapInstance);
+    // 🧨 大師的核彈級陣法：抹殺舊的，創造新的
+    forcePaintMap() {
+        if (!this.latestMapData || !this.elements.mapDom || this.elements.mapDom.offsetHeight === 0) return;
+
+        // 1. 核心奧義：如果地圖已經存在，徹底將它從記憶體中「銷毀」！
+        if (this.mapInstance) {
+            this.mapInstance.remove();
+            this.mapInstance = null;
         }
 
-        // 清除舊圖釘
-        this.mapMarkers.forEach(m => this.mapInstance.removeLayer(m));
-        this.mapMarkers = [];
-        const bounds = [];
+        // 2. 重新創造一個乾淨、無業障的全新地圖
+        this.mapInstance = L.map('hotel-map', {
+            zoomControl: true, // 開啟縮放按鈕
+            attributionControl: false // 隱藏版權文字讓畫面更高級
+        }).setView([43.06, 141.35], 6);
 
-        Object.values(data).forEach(hotel => {
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png').addTo(this.mapInstance);
+
+        const bounds = [];
+        Object.values(this.latestMapData).forEach(hotel => {
             if (hotel.is_deleted || !hotel.lat || !hotel.lng) return;
             const marker = L.marker([hotel.lat, hotel.lng]).addTo(this.mapInstance);
             marker.bindPopup(`<b class="text-blue-600">${hotel.name}</b><br>¥${hotel.price.toLocaleString()}`);
-            this.mapMarkers.push(marker);
             bounds.push([hotel.lat, hotel.lng]);
         });
 
-        // 強制重新計算尺寸，並縮放視野
-        setTimeout(() => {
-            this.mapInstance.invalidateSize();
-            if (bounds.length > 0) {
+        // 3. 安全對焦
+        if (bounds.length > 0) {
+            // 給予極短的 50ms 讓瀏覽器把圖釘畫好，再進行對焦
+            setTimeout(() => {
                 this.mapInstance.fitBounds(bounds, { padding: [20, 20], maxZoom: 14 });
-            }
-        }, 100);
+            }, 50);
+        }
     }
 
     renderHotels(data, myVotes) {
@@ -163,15 +162,16 @@ class UIManager {
     switchTab(tabId) {
         ['voting', 'timeline', 'bill'].forEach(id => document.getElementById(`tab-${id}`).classList.add('hidden'));
         document.getElementById(`tab-${tabId}`).classList.remove('hidden');
-        document.querySelectorAll('.nav-btn').forEach(btn => { btn.classList.toggle('text-blue-600', btn.dataset.tab === tabId); btn.classList.toggle('text-gray-400', btn.dataset.tab !== tabId); });
+        document.querySelectorAll('.nav-btn').forEach(btn => { 
+            btn.classList.toggle('text-blue-600', btn.dataset.tab === tabId); 
+            btn.classList.toggle('text-gray-400', btn.dataset.tab !== tabId); 
+        });
         
         if (tabId === 'voting') {
             if (this.chartInstance) setTimeout(() => this.chartInstance.resize(), 100);
             
-            // 🌟 從其他頁籤切換回來時，保證地圖重新渲染！
-            if (this.latestMapData) {
-                setTimeout(() => this.executeMapRender(this.latestMapData), 100);
-            }
+            // 🌟 從其他頁籤切換回來時，再次召喚核彈地圖！確保尺寸完美！
+            setTimeout(() => this.forcePaintMap(), 100);
         }
     }
 }
@@ -186,7 +186,10 @@ class SkiApp {
         };
         this.service = new FirebaseService();
         this.ui = new UIManager();
-        window.addEventListener('DOMContentLoaded', () => { if (this.state.nickname) { document.getElementById('nickname-input').value = this.state.nickname; this.login(); } });
+
+        window.addEventListener('DOMContentLoaded', () => {
+            if (this.state.nickname) { document.getElementById('nickname-input').value = this.state.nickname; this.login(); }
+        });
     }
 
     login() {
