@@ -146,6 +146,15 @@
         function startListeningToHotels() {
             const hotelsRef = ref(db, 'hotels');
             onValue(hotelsRef, (snapshot) => {
+    const data = snapshot.val();
+    console.log("從雲端抓到的飯店資料是：", data); // 👈 大師加的這行，一定要加！
+    if (data) {
+        renderHotels(data);
+    } else {
+        console.error("雲端路徑錯誤或資料是空的！"); // 👈 這行也要加！
+    }
+});
+            onValue(hotelsRef, (snapshot) => {
                 const data = snapshot.val();
                 if (data) {
                     renderHotels(data);
