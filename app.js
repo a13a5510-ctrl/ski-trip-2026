@@ -158,21 +158,17 @@ class UIManager {
         return { flightAA, liftAA, transportAA, hotelAA, totalAA, rate, sym, hotelName: topHotel ? topHotel.name : '未定' };
     }
 
-    // 在 UIManager 裡面替換這個函數
     switchTab(tabId) {
         ['voting', 'timeline', 'bill'].forEach(id => document.getElementById(`tab-${id}`).classList.add('hidden'));
         document.getElementById(`tab-${tabId}`).classList.remove('hidden');
-        document.querySelectorAll('.nav-btn').forEach(btn => { btn.classList.toggle('text-blue-600', btn.dataset.tab === tabId); btn.classList.toggle('text-gray-400', btn.dataset.tab !== tabId); });
+        document.querySelectorAll('.nav-btn').forEach(btn => { 
+            btn.classList.toggle('text-blue-600', btn.dataset.tab === tabId); 
+            btn.classList.toggle('text-gray-400', btn.dataset.tab !== tabId); 
+        });
         
-        // 🌟 強化版：確保切換回投票頁時，地圖與圖表不會破版
+        // 切換回投票頁時，重新調整圖表尺寸。地圖現在全靠 ResizeObserver 自動處理！
         if (tabId === 'voting') {
-            if (this.chartInstance) {
-                setTimeout(() => this.chartInstance.resize(), 100);
-            }
-            if (this.mapInstance) {
-                // 強制 Leaflet 重新計算容器大小
-                setTimeout(() => this.mapInstance.invalidateSize(), 100);
-            }
+            if (this.chartInstance) setTimeout(() => this.chartInstance.resize(), 100);
         }
     }
 }
