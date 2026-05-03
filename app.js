@@ -156,7 +156,7 @@ class SkiApp {
         });
     }
 
-    // 處理投票邏輯 (優化 UX 版：移除 Loading 彈窗，體驗極致絲滑)
+    // 處理投票邏輯 (終極絲滑版：解決 Race Condition 吃幣問題)
     async vote(itemId, change) {
         let myCurrentVotes = this.state.myVotes[itemId] || 0;
         
@@ -169,20 +169,26 @@ class SkiApp {
             return;
         }
 
-        // 🛑 大師已將「傳輸中...」的 SweetAlert 彈窗移除，不再干擾連續點擊
+        // 🌟 關鍵修正：先更新本地狀態！(這叫做 Optimistic Update)
+        // 讓本地端的陣列先 +1，這樣等一下 Firebase 叫我們重畫畫面時，數字才會是對的
+        this.state.myVotes[itemId] = myCurrentVotes + change;
+        this.state.totalTokens -= change;
+        
+        // 立即更新畫面上方的代幣餘額
+        this.ui.updateTokenDisplay(this.state.totalTokens);
 
         try {
             // 背景默默傳送給 Firebase
             await this.db.submitVote(itemId, change);
-            
-            // 扣除或增加本地代幣狀態，畫面數字會透過 UI Manager 與監聽器瞬間更新
-            this.state.myVotes[itemId] = myCurrentVotes + change;
-            this.state.totalTokens -= change;
-            this.ui.updateTokenDisplay(this.state.totalTokens);
-
         } catch (error) {
-            // 只有在真的發生錯誤時，才跳出提示干擾使用者
+            // 🛡️ 防禦機制 (Rollback)：如果真的遇到網路斷線，要把剛剛扣的代幣「還給」使用者
             console.error("投票失敗:", error);
+            this.state.myVotes[itemId] = myCurrentVotes;
+            this.state.totalTokens += change;
+            this.ui.updateTokenDisplay(this.state.totalTokens);
+            
+            // 並且手動觸發一次重新渲染，把畫面上的票數扣回來 (若有需要)
+            // this.db.listenToHotels 會自動處理這部分，或者可以手動調用
             Swal.fire({ icon: 'error', title: '斷線啦', text: '網路不穩，投票失敗，請重試！' });
         }
     }
