@@ -1,9 +1,9 @@
-// app.js - 2026 日本滑雪戰情室 核心邏輯 (LIFF LINE 登入版)
+// app.js - 2026 日本滑雪戰情室 核心邏輯
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getDatabase, ref, onValue, update, increment } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
 const TRIP_ID = '2026_Japan';
-const LIFF_ID = '2009966916-2eO8R7Jn'; // 🌟 徒兒的專屬鑰匙
+const LIFF_ID = '2009966916-2eO8R7Jn'; 
 
 class FirebaseService {
     constructor() {
@@ -24,31 +24,37 @@ class UIManager {
     constructor() {
         this.elements = {
             loginScreen: document.getElementById('login-screen'), mainApp: document.getElementById('main-app'),
+            appHeader: document.getElementById('app-header'), // 🌟 Req 3
             greeting: document.getElementById('user-greeting'), avatar: document.getElementById('user-avatar'),
             tokenBalance: document.getElementById('token-balance'), hotelsContainer: document.getElementById('hotels-container'), 
-            timelineContainer: document.querySelector('#tab-timeline .border-l-2'),
+            timelineContainer: document.querySelector('#tab-timeline .border-l-2'), timelineSubtitle: document.getElementById('timeline-subtitle'),
             billDetails: document.getElementById('bill-details'), peopleCount: document.getElementById('people-count'), 
             chartDom: document.getElementById('voting-chart')
         };
         this.chartInstance = null; 
     }
 
-    // 🌟 改寫：接收 LINE Profile 並顯示大頭貼
     transitionToApp(profile) {
         this.elements.greeting.innerText = `${profile.displayName}`; 
-        if (profile.pictureUrl) {
-            this.elements.avatar.src = profile.pictureUrl;
-            this.elements.avatar.classList.remove('hidden');
-        }
-        
+        if (profile.pictureUrl) { this.elements.avatar.src = profile.pictureUrl; this.elements.avatar.classList.remove('hidden'); }
         this.elements.loginScreen.style.opacity = '0';
-        setTimeout(() => { 
-            this.elements.loginScreen.style.display = 'none'; 
-            this.elements.mainApp.classList.remove('hidden'); 
-        }, 300);
+        setTimeout(() => { this.elements.loginScreen.style.display = 'none'; this.elements.mainApp.classList.remove('hidden'); }, 300);
     }
-    
     updateTokens(count) { this.elements.tokenBalance.innerText = count; }
+
+    // 🌟 Req 1: 圖表收合魔法
+    toggleChart() {
+        const container = document.getElementById('chart-container');
+        const icon = document.getElementById('chart-toggle-icon');
+        if (container.classList.contains('hidden')) {
+            container.classList.remove('hidden');
+            icon.classList.replace('fa-chevron-down', 'fa-chevron-up');
+            if (this.chartInstance) setTimeout(() => this.chartInstance.resize(), 100);
+        } else {
+            container.classList.add('hidden');
+            icon.classList.replace('fa-chevron-up', 'fa-chevron-down');
+        }
+    }
 
     renderChart(data) {
         if (!this.elements.chartDom) return;
@@ -74,7 +80,10 @@ class UIManager {
                     <div class="h-44 relative bg-cover bg-center" style="background-image: url('${hotel.image}');"><div class="absolute bottom-3 right-3 bg-blue-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg">總計 ${votes} 票</div></div>
                     <div class="p-4">
                         <div class="flex justify-between items-start mb-1"><h3 class="font-bold text-lg dark:text-white">${hotel.name}</h3><span class="text-red-500 font-bold">¥${hotel.price.toLocaleString()}</span></div>
-                        <p class="text-xs text-gray-500 mb-4"><i class="fa-solid fa-location-dot mr-1"></i>${hotel.distance || '優質住宿'}</p>
+                        <p class="text-xs text-gray-500 mb-3"><i class="fa-solid fa-location-dot mr-1"></i>${hotel.distance || '優質住宿'}</p>
+                        
+                        <button onclick="window.viewSpecificTimeline('${id}', '${hotel.name}')" class="w-full mb-3 bg-blue-50 dark:bg-gray-700 text-blue-600 dark:text-blue-400 py-2 rounded-lg text-sm font-bold border border-blue-100 dark:border-gray-600 hover:bg-blue-100 transition active:scale-95"><i class="fa-regular fa-eye mr-1"></i> 觀看此住宿專屬行程</button>
+
                         <div class="flex items-center justify-between bg-gray-50 dark:bg-gray-700 p-2 rounded-xl"><span class="text-sm font-medium pl-2">投入籌碼：</span><div class="flex items-center space-x-3"><button onclick="window.app.handleVote('${id}', -1)" class="w-8 h-8 rounded-full bg-white dark:bg-gray-600 border active:scale-90">-</button><span class="font-bold text-blue-600 text-lg w-4 text-center">${myCount}</span><button onclick="window.app.handleVote('${id}', 1)" class="w-8 h-8 rounded-full bg-blue-100 text-blue-600 active:scale-90">+</button></div></div>
                     </div>
                 </div>`;
@@ -83,7 +92,10 @@ class UIManager {
         this.elements.hotelsContainer.innerHTML = html;
     }
 
-    renderTimeline(itinerary) {
+    renderTimeline(itinerary, hotelName) {
+        // 顯示目前過濾的飯店名稱
+        this.elements.timelineSubtitle.innerText = hotelName === 'all' ? '(整合版)' : `(${hotelName})`;
+        
         let html = '';
         itinerary.forEach(day => {
             let events = day.events.map(ev => `
@@ -94,6 +106,7 @@ class UIManager {
             `).join('');
             html += `<div class="relative pl-6 mb-8"><div class="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-blue-500 border-4 border-gray-50 dark:border-gray-900 shadow"></div><h3 class="font-bold text-blue-600 dark:text-blue-400 mb-1 text-lg">Day ${day.day} 行程</h3><p class="text-xs text-gray-400 mb-3">${day.date}</p>${events}</div>`;
         });
+        if(html === '') html = '<div class="text-center py-10 text-gray-400">此住宿目前尚無專屬行程</div>';
         this.elements.timelineContainer.innerHTML = html;
     }
 
@@ -125,8 +138,14 @@ class UIManager {
             btn.classList.toggle('text-blue-600', btn.dataset.tab === tabId); 
             btn.classList.toggle('text-gray-400', btn.dataset.tab !== tabId); 
         });
+        
+        // 🌟 Req 3: 隱藏非首頁的 Header，騰出更多空間給行程和帳單
+        this.elements.appHeader.style.display = (tabId === 'voting') ? 'block' : 'none';
+
         if (tabId === 'voting') {
-            if (this.chartInstance) setTimeout(() => this.chartInstance.resize(), 100);
+            if (this.chartInstance && !document.getElementById('chart-container').classList.contains('hidden')) {
+                setTimeout(() => this.chartInstance.resize(), 100);
+            }
         }
     }
 }
@@ -134,67 +153,47 @@ class UIManager {
 class SkiApp {
     constructor() {
         this.state = {
-            lineProfile: null, // 🌟 儲存使用者的 LINE 資訊
+            lineProfile: null, 
             tokens: parseInt(localStorage.getItem('ski_tokens')) || 10,
             myVotes: JSON.parse(localStorage.getItem('ski_my_votes')) || {},
-            topHotel: null, currency: 'TWD', peopleCount: 4, currentBillData: null 
+            topHotel: null, currency: 'TWD', peopleCount: 4, currentBillData: null,
+            
+            // 🌟 Req 4: 狀態庫新增紀錄
+            rawTimelineData: null,
+            selectedHotelIdForTimeline: 'all',
+            selectedHotelNameForTimeline: 'all'
         };
         this.service = new FirebaseService();
         this.ui = new UIManager();
-
-        // 網頁一開，立刻啟動 LINE 連線陣法！
         this.initLiff();
     }
 
-    // 🌟 新增：LIFF 初始化邏輯
     async initLiff() {
         const loadingText = document.getElementById('liff-loading');
         const loginBtn = document.getElementById('liff-login-btn');
-        
-        // 斷網求生術：如果沒有網路，而且大腦裡有存過大頭貼，直接強迫登入！
         const savedProfile = JSON.parse(localStorage.getItem('ski_line_profile'));
-        if (!navigator.onLine && savedProfile) {
-            console.log("極地狀態：載入歷史 LINE 紀錄");
-            this.handleLineLogin(savedProfile);
-            return;
-        }
+        if (!navigator.onLine && savedProfile) { this.handleLineLogin(savedProfile); return; }
 
         try {
             await liff.init({ liffId: LIFF_ID });
-
-            // 檢查是否已經在 LINE App 內或是已經在瀏覽器登入過
             if (liff.isLoggedIn()) {
                 const profile = await liff.getProfile();
-                localStorage.setItem('ski_line_profile', JSON.stringify(profile)); // 存入戰備記憶體
+                localStorage.setItem('ski_line_profile', JSON.stringify(profile));
                 this.handleLineLogin(profile);
             } else {
-                // 如果沒登入，隱藏 Loading，秀出綠色的「LINE 登入」按鈕
-                loadingText.classList.add('hidden');
-                loginBtn.classList.remove('hidden');
+                loadingText.classList.add('hidden'); loginBtn.classList.remove('hidden');
             }
         } catch (err) {
-            console.error("LIFF 啟動失敗", err);
             loadingText.innerText = "連線異常，請重新整理";
-            // 萬一 LIFF 真的掛掉，用舊的名字頂替
-            if (savedProfile) {
-                this.handleLineLogin(savedProfile);
-            }
+            if (savedProfile) this.handleLineLogin(savedProfile);
         }
     }
 
-    // 🌟 按下登入按鈕時呼叫
-    loginWithLine() {
-        if (!liff.isLoggedIn()) {
-            liff.login(); // 這會自動跳轉去 LINE 的認證網頁
-        }
-    }
+    loginWithLine() { if (!liff.isLoggedIn()) liff.login(); }
 
-    // 🌟 登入成功後的核心流程
     handleLineLogin(profile) {
         this.state.lineProfile = profile;
-        this.ui.transitionToApp(profile); 
-        this.ui.updateTokens(this.state.tokens);
-        
+        this.ui.transitionToApp(profile); this.ui.updateTokens(this.state.tokens);
         const offHotels = JSON.parse(localStorage.getItem('ski_offline_hotels')); if (offHotels) this.processHotelData(offHotels);
         const offTimeline = JSON.parse(localStorage.getItem('ski_offline_timeline')); if (offTimeline) this.processTimelineData(offTimeline);
 
@@ -205,20 +204,41 @@ class SkiApp {
     processHotelData(data) {
         this.ui.renderHotels(data, this.state.myVotes); 
         this.ui.renderChart(data); 
-        
         let maxVotes = -1; this.state.topHotel = null; 
-        Object.values(data).forEach(hotel => {
+        Object.entries(data).forEach(([id, hotel]) => {
+            hotel.id = id; // 綁定 ID 以便後續讀取
             if (hotel.is_deleted) return;
             const votes = hotel.totalVotes || 0;
             if (votes > maxVotes) { maxVotes = votes; this.state.topHotel = hotel; }
         });
+        
+        // 如果目前沒有點擊特定的飯店行程，預設追蹤最高票的飯店
+        if (this.state.selectedHotelIdForTimeline === 'all' && this.state.topHotel) {
+            this.state.selectedHotelNameForTimeline = this.state.topHotel.name;
+        }
+
         this.triggerBillUpdate();
     }
 
+    // 🌟 Req 4: 點擊按鈕時觸發的過濾陣法
+    viewSpecificTimeline(hotelId, hotelName) {
+        this.state.selectedHotelIdForTimeline = hotelId;
+        this.state.selectedHotelNameForTimeline = hotelName;
+        this.processTimelineData(this.state.rawTimelineData); // 重新過濾渲染
+        this.ui.switchTab('timeline'); // 自動跳轉頁籤
+    }
+
     processTimelineData(data) {
+        this.state.rawTimelineData = data; // 存下原始資料
         if (!data || Object.keys(data).length === 0) { this.ui.elements.timelineContainer.innerHTML = '<div class="text-gray-400 text-center py-10"><i class="fa-solid fa-person-digging text-3xl mb-3 block"></i>管理員尚在安排行程中...</div>'; return; }
+        
+        const targetHotelId = this.state.selectedHotelIdForTimeline;
         const daysMap = {};
+        
         Object.values(data).forEach(ev => {
+            // 🌟 核心過濾邏輯：只抓「沒有綁定(舊資料)」、「綁定為all共用」、「綁定符合目前點擊的飯店」
+            if (ev.hotelId && ev.hotelId !== 'all' && ev.hotelId !== targetHotelId) return;
+
             if (!daysMap[ev.day]) daysMap[ev.day] = { day: ev.day, date: ev.date, events: [] };
             let color = 'text-blue-500'; let bg = 'bg-blue-100 dark:bg-blue-900/30';
             if(ev.icon === 'fa-bus') { color = 'text-green-500'; bg = 'bg-green-100 dark:bg-green-900/30'; }
@@ -230,7 +250,8 @@ class SkiApp {
         });
         const itinerary = Object.values(daysMap).sort((a, b) => a.day - b.day);
         itinerary.forEach(dayObj => dayObj.events.sort((a, b) => a.time.localeCompare(b.time)));
-        this.ui.renderTimeline(itinerary);
+        
+        this.ui.renderTimeline(itinerary, this.state.selectedHotelNameForTimeline);
     }
 
     setCurrency(curr) { this.state.currency = curr; this.triggerBillUpdate(); }
@@ -258,8 +279,11 @@ class SkiApp {
 }
 
 const app = new SkiApp(); window.app = app; 
-window.loginWithLine = () => app.loginWithLine(); // 🌟 給按鈕呼叫的
-window.switchTab = (id) => app.ui.switchTab(id); window.copyBillMessage = () => app.copyBillMessage();
+window.loginWithLine = () => app.loginWithLine(); 
+window.switchTab = (id) => app.ui.switchTab(id); 
+window.toggleChart = () => app.ui.toggleChart();
+window.viewSpecificTimeline = (id, name) => app.viewSpecificTimeline(id, name);
+window.copyBillMessage = () => app.copyBillMessage();
 window.toggleDarkMode = () => {
     document.documentElement.classList.toggle('dark');
     document.getElementById('theme-icon').classList.toggle('fa-moon'); document.getElementById('theme-icon').classList.toggle('fa-sun');
