@@ -4,17 +4,16 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>2026 日本滑雪戰情室</title>
+    
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = { darkMode: 'class', }
     </script>
+    
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <style>
-        .no-scrollbar::-webkit-scrollbar { display: none; }
-        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-        * { -webkit-tap-highlight-color: transparent; }
-    </style>
+    
+    <link rel="stylesheet" href="style.css">
 </head>
 <body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-100 font-sans antialiased transition-colors duration-300">
 
@@ -102,174 +101,7 @@
         </div>
     </div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getDatabase, ref, onValue, update, increment } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+    <script type="module" src="app.js"></script>
 
-        // ⚠️ 這次一定要把這整塊「完全替換」掉！
-        const firebaseConfig = {
-            apiKey: "AIzaSyD-mC8R_WvYV_7f2H9u_QyT_XfR-fX_k", // 請對照你的 Firebase 設定填入完整 apiKey
-            authDomain: "ski-dashboard-2026-c146e.firebaseapp.com",
-            databaseURL: "https://ski-dashboard-2026-default-rtdb.firebaseio.com",
-            projectId: "ski-dashboard-2026-c146e",
-            storageBucket: "ski-dashboard-2026-c146e.firebasestorage.app",
-            messagingSenderId: "364506305602",
-            appId: "1:364506305602:web:9349e54a6136be42858d4e"
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
-
-        window.state = {
-            nickname: "",
-            totalTokens: 10,
-            myVotes: {} 
-        };
-
-        window.login = function() {
-            const input = document.getElementById('nickname-input').value.trim();
-            if(!input) {
-                Swal.fire({ icon: 'error', title: '徒兒...', text: '名字要打啊！' });
-                return;
-            }
-            window.state.nickname = input;
-            document.getElementById('user-greeting').innerText = `嗨，${window.state.nickname}`;
-            
-            document.getElementById('login-screen').style.opacity = '0';
-            setTimeout(() => {
-                document.getElementById('login-screen').style.display = 'none';
-                document.getElementById('main-app').classList.remove('hidden');
-                startListeningToHotels();
-            }, 300);
-        }
-
-        function startListeningToHotels() {
-            const hotelsRef = ref(db, 'hotels');
-            onValue(hotelsRef, (snapshot) => {
-    const data = snapshot.val();
-    console.log("從雲端抓到的飯店資料是：", data); // 👈 大師加的這行，一定要加！
-    if (data) {
-        renderHotels(data);
-    } else {
-        console.error("雲端路徑錯誤或資料是空的！"); // 👈 這行也要加！
-    }
-});
-            onValue(hotelsRef, (snapshot) => {
-                const data = snapshot.val();
-                if (data) {
-                    renderHotels(data);
-                }
-            });
-        }
-
-        function renderHotels(hotelsData) {
-            const container = document.getElementById('hotels-container');
-            let htmlStr = '';
-
-            for (const [key, hotel] of Object.entries(hotelsData)) {
-                const totalVotes = hotel.totalVotes || 0;
-                const myVoteCount = window.state.myVotes[key] || 0;
-
-                // 注意這裡的按鈕，大師已經幫你寫死 window.vote 了，絕對不要改掉它喔！
-                htmlStr += `
-                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden mb-4">
-                        <div class="h-44 relative bg-cover bg-center" style="background-image: url('${hotel.image}');">
-                            <div class="absolute top-3 left-3 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded-md backdrop-blur-sm">${hotel.tags ? hotel.tags[0] : '精選'}</div>
-                            <div class="absolute bottom-3 right-3 bg-blue-600 text-white text-xs font-bold px-3 py-1 rounded-full shadow-lg">總票數: ${totalVotes} 票</div>
-                        </div>
-                        <div class="p-4">
-                            <div class="flex justify-between items-start mb-1">
-                                <h3 class="font-bold text-lg dark:text-white">${hotel.name}</h3>
-                                <span class="text-red-500 dark:text-red-400 font-bold">¥${hotel.price.toLocaleString()}<span class="text-xs text-gray-400 dark:text-gray-500 font-normal"> /晚</span></span>
-                            </div>
-                            <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">${hotel.desc}</p>
-                            
-                            <div class="flex items-center justify-between bg-gray-50 dark:bg-gray-700 p-2 rounded-xl">
-                                <span class="text-sm font-medium text-gray-600 dark:text-gray-300 pl-2">投入籌碼：</span>
-                                <div class="flex items-center space-x-3 pr-1">
-                                    <button onclick="window.vote('${key}', -1)" class="w-9 h-9 rounded-full bg-white dark:bg-gray-600 border border-gray-200 dark:border-gray-500 text-gray-600 dark:text-gray-200 shadow-sm flex justify-center items-center active:scale-90 transition-transform"><i class="fa-solid fa-minus text-sm"></i></button>
-                                    <span class="font-bold text-blue-600 dark:text-blue-400 w-5 text-center text-lg">${myVoteCount}</span>
-                                    <button onclick="window.vote('${key}', 1)" class="w-9 h-9 rounded-full bg-blue-100 dark:bg-blue-900 border border-blue-200 dark:border-blue-700 text-blue-600 dark:text-blue-300 shadow-sm flex justify-center items-center active:scale-90 transition-transform"><i class="fa-solid fa-plus text-sm"></i></button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }
-            container.innerHTML = htmlStr;
-        }
-
-        window.vote = async function(itemId, change) {
-            let myCurrentVotes = window.state.myVotes[itemId] || 0;
-            
-            if (change < 0 && myCurrentVotes === 0) return; 
-            if (change > 0 && window.state.totalTokens === 0) {
-                Swal.fire({ icon: 'warning', title: '籌碼耗盡', text: '你的 10 枚雪花幣已經用完啦！', timer: 1500 });
-                return;
-            }
-
-            Swal.fire({
-                title: '傳輸中...',
-                text: '正在與 Firebase 雲端同步您的神聖一票',
-                allowOutsideClick: false,
-                didOpen: () => { Swal.showLoading(); }
-            });
-
-            try {
-                const updates = {};
-                updates[`hotels/${itemId}/totalVotes`] = increment(change);
-                
-                await update(ref(db), updates);
-
-                window.state.myVotes[itemId] = myCurrentVotes + change;
-                window.state.totalTokens -= change;
-                document.getElementById('token-balance').innerText = window.state.totalTokens;
-
-                Swal.close();
-
-            } catch (error) {
-                console.error("投票失敗:", error);
-                Swal.fire({ icon: 'error', title: '斷線啦', text: '網路不穩，投票失敗，請重試！' });
-            }
-        }
-
-        window.switchTab = function(tabId) {
-             ['voting', 'timeline', 'bill'].forEach(id => {
-                document.getElementById(`tab-${id}`).classList.add('hidden');
-            });
-            document.getElementById(`tab-${tabId}`).classList.remove('hidden');
-
-            document.querySelectorAll('.nav-btn').forEach(btn => {
-                if(btn.dataset.tab === tabId) {
-                    btn.className = `nav-btn flex flex-col items-center flex-1 py-1 rounded-lg active:bg-gray-100 dark:active:bg-gray-700 transition-colors text-blue-600 dark:text-blue-400`;
-                } else {
-                    btn.className = `nav-btn flex flex-col items-center flex-1 py-1 rounded-lg active:bg-gray-100 dark:active:bg-gray-700 transition-colors text-gray-400 dark:text-gray-500`;
-                }
-            });
-        }
-        
-        window.toggleDarkMode = function() {
-            const html = document.documentElement;
-            const icon = document.getElementById('theme-icon');
-            if (html.classList.contains('dark')) {
-                html.classList.remove('dark');
-                icon.classList.remove('fa-sun');
-                icon.classList.add('fa-moon');
-            } else {
-                html.classList.add('dark');
-                icon.classList.remove('fa-moon');
-                icon.classList.add('fa-sun');
-            }
-        }
-        
-        window.copyBillMessage = function() {
-            const msg = `【${window.state.nickname || '雪友'}的滑雪帳單】\n✈️ 機票：$15,400\n🏨 住宿：$8,200\n🎫 纜車：$4,500\n🚌 交通：$2,100\n💰 總計：NT$ 30,200\n\n🏦 請匯款至：(代碼 808) 1234-567-890123\n🙏 感謝大德，期待一起滑雪！`;
-            navigator.clipboard.writeText(msg).then(() => {
-                Swal.fire({ icon: 'success', title: '複製成功！', text: '快去 LINE 群組貼上討債吧！', timer: 2000 });
-            }).catch(err => {
-                Swal.fire({ icon: 'error', title: '複製失敗', text: '請手動複製。' });
-            });
-        }
-    </script>
 </body>
 </html>
