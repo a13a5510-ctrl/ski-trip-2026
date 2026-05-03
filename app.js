@@ -164,10 +164,14 @@ class UIManager {
     }
 }
 
+// ==========================================
+// 3. 系統主程式類別 (升級版：極地求生與自動登入)
+// ==========================================
 class SkiApp {
     constructor() {
         this.state = {
-            nickname: "",
+            // 🌟 1. 喚醒記憶：嘗試從 LocalStorage 讀取上次的暱稱
+            nickname: localStorage.getItem('ski_username') || "",
             tokens: parseInt(localStorage.getItem('ski_tokens')) || 10,
             myVotes: JSON.parse(localStorage.getItem('ski_my_votes')) || {},
             topHotel: null,
@@ -180,6 +184,14 @@ class SkiApp {
         this.itinerary = [
             { day: 1, title: "啟程與抵達", date: "2026/02/10", events: [ { time: "08:30", icon: "fa-plane", color: "text-blue-500", bg: "bg-blue-100", title: "星宇航空 JX800", desc: "TPE ➔ NRT" } ] }
         ];
+
+        // 🌟 2. 自動登入陣法：如果已經有名字，網頁載入時自動通關！
+        window.addEventListener('DOMContentLoaded', () => {
+            if (this.state.nickname) {
+                document.getElementById('nickname-input').value = this.state.nickname;
+                this.login();
+            }
+        });
     }
 
     login() {
@@ -187,34 +199,56 @@ class SkiApp {
         if (!input) return Swal.fire('徒兒！', '請輸入暱稱', 'warning');
         
         this.state.nickname = input;
+        localStorage.setItem('ski_username', input); // 🌟 存下名字，下次免登入
+
         this.ui.transitionToApp(input);
         this.ui.renderTimeline(this.itinerary);
         this.ui.updateTokens(this.state.tokens);
         
-        this.service.listenToHotels((data) => {
-            this.ui.renderHotels(data, this.state.myVotes);
-            
-            let maxVotes = -1;
-            this.state.topHotel = null; // 重置
-            Object.values(data).forEach(hotel => {
-                // 🛡️ 防禦陣法：在計算最高票時，被隱藏的飯店沒有資格競選！
-                if (hotel.is_deleted) return;
+        // 🌟 3. 極地求生術 (Offline First)：先撈出「戰備儲糧」畫畫面！
+        const offlineHotels = JSON.parse(localStorage.getItem('ski_offline_hotels'));
+        if (offlineHotels) {
+            console.log("🟢 偵測到本機戰備儲糧，先行載入離線飯店資料！");
+            this.processHotelData(offlineHotels);
+        }
 
-                const votes = hotel.totalVotes || 0;
-                if (votes > maxVotes) { maxVotes = votes; this.state.topHotel = hotel; }
-            });
-            this.triggerBillUpdate();
+        // 監聽資料庫 (如果有網路，這裡抓到的新資料會瞬間「覆蓋」舊資料)
+        this.service.listenToHotels((data) => {
+            // 🌟 4. 每次拿到最新鮮的雲端資料，就更新進「戰備儲糧」中
+            localStorage.setItem('ski_offline_hotels', JSON.stringify(data));
+            this.processHotelData(data);
         });
     }
 
+    // 🌟 將資料處理邏輯獨立出來，方便離線/連線時共用呼叫
+    processHotelData(data) {
+        this.ui.renderHotels(data, this.state.myVotes);
+        
+        let maxVotes = -1;
+        this.state.topHotel = null; 
+        Object.values(data).forEach(hotel => {
+            if (hotel.is_deleted) return; // 隱藏封印的飯店
+            const votes = hotel.totalVotes || 0;
+            if (votes > maxVotes) { maxVotes = votes; this.state.topHotel = hotel; }
+        });
+        this.triggerBillUpdate();
+    }
+
     setCurrency(curr) { this.state.currency = curr; this.triggerBillUpdate(); }
+    
     changePeople(delta) {
         const newCount = this.state.peopleCount + delta;
         if (newCount >= 1 && newCount <= 20) { this.state.peopleCount = newCount; this.triggerBillUpdate(); }
     }
+    
     triggerBillUpdate() { this.state.currentBillData = this.ui.renderDynamicBill(this.state.topHotel, this.state); }
 
     async handleVote(id, change) {
+        // 🌟 5. 斷網防呆：如果目前沒網路，禁止投票並跳出提示
+        if (!navigator.onLine) {
+            return Swal.fire('極地狀態', '目前處於離線狀態，無法進行投票喔！', 'warning');
+        }
+
         const currentVal = this.state.myVotes[id] || 0;
         if (change < 0 && currentVal === 0) return;
         if (change > 0 && this.state.tokens <= 0) return Swal.fire('籌碼耗盡', '你的雪花幣已用完', 'info');
