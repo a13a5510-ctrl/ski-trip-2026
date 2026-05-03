@@ -106,16 +106,16 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
         import { getDatabase, ref, onValue, update, increment } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-        // ⚠️ 徒兒！務必把下方換成你的金鑰！
+        // ⚠️ 這次一定要把這整塊「完全替換」掉！
         const firebaseConfig = {
-            apiKey: "AIzaSyD7YddLJXGtjE-pK4N8oFVgxPqqODB8MZM",
+            apiKey: "AIzaSyD-mC8R_WvYV_7f2H9u_QyT_XfR-fX_k", // 請對照你的 Firebase 設定填入完整 apiKey
             authDomain: "ski-dashboard-2026-c146e.firebaseapp.com",
             databaseURL: "https://ski-dashboard-2026-c146e-default-rtdb.firebaseio.com",
             projectId: "ski-dashboard-2026-c146e",
             storageBucket: "ski-dashboard-2026-c146e.firebasestorage.app",
             messagingSenderId: "364506305602",
             appId: "1:364506305602:web:9349e54a6136be42858d4e"
-                };
+        };
 
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
