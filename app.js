@@ -10,7 +10,7 @@ class FirebaseService {
         const firebaseConfig = {
             apiKey: "AIzaSyD-mC8R_WvYV_7f2H9u_QyT_XfR-fX_k",
             authDomain: "ski-dashboard-2026-c146e.firebaseapp.com",
-            databaseURL: "https://ski-dashboard-2026-c146e-default-rtdb.firebaseio.com",
+            databaseURL: "https://ski-dashboard-2026-default-rtdb.firebaseio.com",
             projectId: "ski-dashboard-2026-c146e",
             storageBucket: "ski-dashboard-2026-c146e.firebasestorage.app",
             messagingSenderId: "364506305602",
