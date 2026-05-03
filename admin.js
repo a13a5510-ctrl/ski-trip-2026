@@ -1,130 +1,78 @@
-// admin.js - 後台管理邏輯 (防禦升級版)
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getDatabase, ref, push, set, get, update, remove, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>造物主密室 - 滑雪戰情室後台</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+<body class="bg-gray-900 text-gray-100 font-sans antialiased min-h-screen flex items-center justify-center p-4">
 
-// 🌟 編年史常數：以後改年份只要改這裡！
-const TRIP_ID = '2026_Japan';
-
-class AdminPanel {
-    constructor() {
-        const firebaseConfig = {
-            apiKey: "AIzaSyD-mC8R_WvYV_7f2H9u_QyT_XfR-fX_k",
-            authDomain: "ski-dashboard-2026-c146e.firebaseapp.com",
-            databaseURL: "https://ski-dashboard-2026-default-rtdb.firebaseio.com",
-            projectId: "ski-dashboard-2026-c146e",
-            storageBucket: "ski-dashboard-2026-c146e.firebasestorage.app",
-            messagingSenderId: "364506305602",
-            appId: "1:364506305602:web:9349e54a6136be42858d4e"
-        };
-        const app = initializeApp(firebaseConfig);
-        this.db = getDatabase(app);
+    <div id="admin-panel" class="hidden w-full max-w-2xl bg-gray-800 rounded-2xl shadow-2xl border border-gray-700 overflow-hidden my-8">
+        <div class="bg-gray-950 p-6 border-b border-gray-700 flex justify-between items-center sticky top-0 z-10">
+            <h1 class="text-2xl font-black text-blue-500"><i class="fa-solid fa-terminal mr-2"></i>戰情室中央控制台</h1>
+            <a href="index.html" target="_blank" class="text-sm text-gray-400 hover:text-white underline">前往前台 ➔</a>
+        </div>
         
-        this.verifyAdmin();
-    }
+        <div class="p-8">
+            <h2 class="text-lg font-bold mb-4 text-gray-300">➕ 新增住宿候選</h2>
+            <form id="add-hotel-form" class="space-y-5 mb-8" onsubmit="window.submitNewHotel(event)">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div><label class="block text-sm font-medium text-gray-400 mb-1">飯店名稱</label><input type="text" id="hotel-name" required class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"></div>
+                    <div><label class="block text-sm font-medium text-gray-400 mb-1">每晚價格 (日幣)</label><input type="number" id="hotel-price" required class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"></div>
+                </div>
+                <div><label class="block text-sm font-medium text-gray-400 mb-1">距離與特色描述</label><input type="text" id="hotel-desc" placeholder="例如：走路 5 分鐘" required class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"></div>
+                <div><label class="block text-sm font-medium text-gray-400 mb-1">封面圖片網址 (URL)</label><input type="url" id="hotel-image" placeholder="https://..." required class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"></div>
+                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-lg shadow-lg active:scale-95 transition-transform"><i class="fa-solid fa-cloud-arrow-up mr-2"></i> 發射住宿至雲端</button>
+            </form>
 
-    async verifyAdmin() {
-        const { value: password } = await Swal.fire({
-            title: '造物主密室', input: 'password', allowOutsideClick: false,
-            confirmButtonText: '解鎖 🔓', confirmButtonColor: '#3B82F6'
-        });
+            <div class="border-t border-gray-700 pt-6 mb-8">
+                <h2 class="text-lg font-bold mb-4 text-gray-300"><i class="fa-solid fa-list-check mr-2"></i>管理現有住宿 (封印術)</h2>
+                <div id="admin-hotels-list" class="space-y-3 max-h-60 overflow-y-auto pr-2">
+                    <p class="text-gray-500 text-sm">載入中...</p>
+                </div>
+            </div>
 
-        if (password === 'snow2026') {
-            document.getElementById('admin-panel').classList.remove('hidden');
-            this.listenToHotels(); // 解鎖後開始監聽飯店列表
-        } else {
-            Swal.fire({ icon: 'error', title: '密碼錯誤' }).then(() => location.reload());
-        }
-    }
-
-    // 🌟 監聽並渲染後台的飯店列表
-    listenToHotels() {
-        onValue(ref(this.db, `${TRIP_ID}/hotels`), (snapshot) => {
-            const data = snapshot.val();
-            const container = document.getElementById('admin-hotels-list');
-            if (!data) {
-                container.innerHTML = '<p class="text-gray-500 text-sm">目前無任何住宿資料</p>';
-                return;
-            }
-            
-            let html = '';
-            Object.entries(data).forEach(([id, hotel]) => {
-                const isDeleted = hotel.is_deleted;
-                const statusHtml = isDeleted ? '<span class="ml-2 text-red-400 text-[10px] bg-red-900/30 px-2 py-0.5 rounded">已封印(隱藏)</span>' : '<span class="ml-2 text-green-400 text-[10px] bg-green-900/30 px-2 py-0.5 rounded">營業中</span>';
-                const actionBtn = isDeleted 
-                    ? `<button onclick="window.toggleSoftDelete('${id}', false)" class="text-xs border border-green-600 text-green-400 px-3 py-1.5 rounded hover:bg-green-900/50 transition">解封</button>`
-                    : `<button onclick="window.toggleSoftDelete('${id}', true)" class="text-xs border border-red-600 text-red-400 px-3 py-1.5 rounded hover:bg-red-900/50 transition">封印</button>`;
-
-                html += `
-                    <div class="flex justify-between items-center bg-gray-750 border border-gray-700 p-3 rounded-lg ${isDeleted ? 'opacity-50 grayscale' : ''}">
+            <div class="border-t border-gray-700 pt-6 mb-8">
+                <h2 class="text-lg font-bold mb-4 text-blue-400"><i class="fa-solid fa-clock mr-2"></i>⏳ 新增行程積木 (時光之柱)</h2>
+                <form id="add-timeline-form" class="space-y-4" onsubmit="window.submitNewTimeline(event)">
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div><label class="block text-sm text-gray-400 mb-1">第幾天 (數字)</label><input type="number" id="t-day" required class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white" value="1"></div>
+                        <div><label class="block text-sm text-gray-400 mb-1">日期</label><input type="text" id="t-date" required class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white" placeholder="2/10"></div>
+                        <div><label class="block text-sm text-gray-400 mb-1">時間</label><input type="time" id="t-time" required class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white"></div>
                         <div>
-                            <div class="text-sm font-bold text-white flex items-center">${hotel.name} ${statusHtml}</div>
-                            <div class="text-xs text-gray-400 mt-1">累積票數: ${hotel.totalVotes || 0} 票</div>
+                            <label class="block text-sm text-gray-400 mb-1">分類圖示</label>
+                            <select id="t-icon" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white">
+                                <option value="fa-plane">✈️ 飛機航班</option>
+                                <option value="fa-bus">🚌 陸地交通</option>
+                                <option value="fa-hotel">🏨 飯店住宿</option>
+                                <option value="fa-person-snowboarding">🏂 激戰滑雪</option>
+                                <option value="fa-utensils">🍔 餐廳覓食</option>
+                                <option value="fa-flag">🚩 集合地</option>
+                            </select>
                         </div>
-                        ${actionBtn}
                     </div>
-                `;
-            });
-            container.innerHTML = html;
-        });
-    }
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div><label class="block text-sm text-gray-400 mb-1">標題</label><input type="text" id="t-title" required class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white" placeholder="星宇航空 JX800"></div>
+                        <div><label class="block text-sm text-gray-400 mb-1">描述 (選填)</label><input type="text" id="t-desc" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white" placeholder="TPE ➔ NRT"></div>
+                    </div>
+                    <button type="submit" class="w-full bg-blue-900/80 hover:bg-blue-700 border border-blue-600 text-white font-bold py-2 rounded-lg transition-transform active:scale-95"><i class="fa-solid fa-plus mr-2"></i>組裝行程積木</button>
+                </form>
+            </div>
 
-    // 🌟 實作軟刪除 (封印術)
-    async toggleSoftDelete(hotelId, deleteStatus) {
-        await update(ref(this.db, `${TRIP_ID}/hotels/${hotelId}`), {
-            is_deleted: deleteStatus
-        });
-        const msg = deleteStatus ? '飯店已在前台隱藏，但歷史票數已保留！' : '飯店已重新開放投票！';
-        Swal.fire({ icon: 'success', title: '狀態更新', text: msg, toast: true, position: 'top-end', showConfirmButton: false, timer: 3000 });
-    }
+            <div class="border-t border-red-900 pt-6">
+                <h2 class="text-lg font-bold mb-4 text-red-500"><i class="fa-solid fa-triangle-exclamation mr-2"></i>危險區域</h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <button onclick="window.resetAllVotes()" class="bg-red-900/50 hover:bg-red-800 text-red-300 border border-red-800 font-bold py-2 text-sm rounded-lg active:scale-95 transition-transform">票數歸零</button>
+                    <button onclick="window.clearTimeline()" class="bg-red-900/50 hover:bg-red-800 text-red-300 border border-red-800 font-bold py-2 text-sm rounded-lg active:scale-95 transition-transform">清空行程表</button>
+                    <button onclick="window.deleteAllHotels()" class="bg-red-700 hover:bg-red-600 text-white font-bold py-2 text-sm rounded-lg active:scale-95 transition-transform shadow-lg">毀滅所有飯店</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
-    async addNewHotel(hotelData) {
-        try {
-            await set(push(ref(this.db, `${TRIP_ID}/hotels`)), hotelData);
-            Swal.fire('發射成功！', '新住宿已同步', 'success');
-            document.getElementById('add-hotel-form').reset();
-        } catch (error) {
-            Swal.fire('錯誤', '資料寫入失敗', 'error');
-        }
-    }
-
-    async resetAllVotes() {
-        const result = await Swal.fire({ title: '重置所有票數？', icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: '確定歸零' });
-        if (result.isConfirmed) {
-            const snapshot = await get(ref(this.db, `${TRIP_ID}/hotels`));
-            if (snapshot.exists()) {
-                const updates = {};
-                Object.keys(snapshot.val()).forEach(key => updates[`${TRIP_ID}/hotels/${key}/totalVotes`] = 0);
-                await update(ref(this.db), updates);
-                localStorage.removeItem('ski_tokens');
-                localStorage.removeItem('ski_my_votes');
-                Swal.fire('已歸零', '', 'success');
-            }
-        }
-    }
-
-    async deleteAllHotels() {
-        const result = await Swal.fire({ title: '核彈啟動確認', icon: 'error', showCancelButton: true, confirmButtonColor: '#000', confirmButtonText: '發射核彈 💣' });
-        if (result.isConfirmed) {
-            await remove(ref(this.db, `${TRIP_ID}/hotels`));
-            Swal.fire('已毀滅', '世界清靜了', 'success');
-        }
-    }
-}
-
-const adminApp = new AdminPanel();
-
-window.submitNewHotel = (e) => {
-    e.preventDefault();
-    adminApp.addNewHotel({
-        name: document.getElementById('hotel-name').value,
-        price: parseInt(document.getElementById('hotel-price').value),
-        desc: document.getElementById('hotel-desc').value,
-        image: document.getElementById('hotel-image').value,
-        totalVotes: 0,
-        is_deleted: false // 🌟 新增：預設是沒有被刪除的
-    });
-};
-
-window.resetAllVotes = () => adminApp.resetAllVotes();
-window.deleteAllHotels = () => adminApp.deleteAllHotels();
-window.toggleSoftDelete = (id, status) => adminApp.toggleSoftDelete(id, status);
+    <script type="module" src="admin.js"></script>
+</body>
+</html>
