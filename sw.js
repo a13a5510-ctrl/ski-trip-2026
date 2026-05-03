@@ -1,42 +1,54 @@
-// sw.js - 離線守護者 (Service Worker)
-const CACHE_NAME = 'ski-trip-cache-v1';
+// sw.js - 離線守護者 (終極極地版 V2)
+const CACHE_NAME = 'ski-trip-cache-v2';
 
-// 這些是我們網站的「核心骨架」，一安裝 App 就強制下載存起來
+// 🌟 把根目錄 './' 也加進快取清單中！
 const urlsToCache = [
+    './',
     './index.html',
     './style.css',
     './app.js'
 ];
 
-// 安裝階段：將骨架存入快取庫
+// 安裝階段：強制立即接管
 self.addEventListener('install', event => {
+    self.skipWaiting(); // 🌟 放棄實習期，立刻強制上工
     event.waitUntil(
         caches.open(CACHE_NAME).then(cache => {
-            console.log('離線快取庫建立完成！');
+            console.log('📦 終極離線快取庫建立完成！');
             return cache.addAll(urlsToCache);
         })
     );
 });
 
-// 攔截請求階段：網路優先 (Network First)
+// 啟動階段：立刻控制所有開啟的網頁
+self.addEventListener('activate', event => {
+    event.waitUntil(self.clients.claim()); // 🌟 宣告接管這台瀏覽器
+});
+
+// 攔截請求階段：網路優先，並且具備智慧導航
 self.addEventListener('fetch', event => {
-    // 只攔截 GET 請求 (不攔截投票的 POST/PUT，因為沒網路本來就不能投票)
     if (event.request.method !== 'GET') return;
 
     event.respondWith(
         fetch(event.request)
             .then(response => {
-                // 1. 如果網路暢通，就把抓到的新資料(包含 Firebase 傳來的 JSON) 順便存一份進快取
                 const responseClone = response.clone();
                 caches.open(CACHE_NAME).then(cache => {
                     cache.put(event.request, responseClone);
                 });
-                return response; // 將最新資料還給網頁
+                return response;
             })
             .catch(() => {
-                // 2. 如果斷網 (fetch 發生錯誤)，就去快取庫裡面找舊資料來救命！
-                console.log('🔴 偵測到斷網，啟動極地求生模式，載入快取資料...');
-                return caches.match(event.request);
+                console.log('🔴 偵測到斷網，啟動極地求生模式...');
+                // 🌟 智慧導航：去快取庫找，如果找不到完全一樣的網址，只要是切換網頁的要求，都硬塞 index.html 給他！
+                return caches.match(event.request).then(cachedResponse => {
+                    if (cachedResponse) {
+                        return cachedResponse;
+                    }
+                    if (event.request.mode === 'navigate') {
+                        return caches.match('./index.html');
+                    }
+                });
             })
     );
 });
