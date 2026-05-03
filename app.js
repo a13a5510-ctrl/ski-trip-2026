@@ -99,6 +99,48 @@ class UIManager {
         this.htmlElements.hotelsContainer.innerHTML = htmlStr;
     }
 
+// 渲染垂直行程表
+    renderTimeline(scheduleData) {
+        // 抓取我們在 HTML 中預留的時間軸容器
+        const container = document.querySelector('#tab-timeline .border-l-2');
+        if (!container) return; 
+        
+        let htmlStr = '';
+
+        scheduleData.forEach(day => {
+            let eventsHtml = '';
+            // 迴圈渲染當天的每一個小行程
+            day.events.forEach(ev => {
+                eventsHtml += `
+                    <div class="bg-white dark:bg-gray-800 p-3 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 mb-3 flex items-center transition-transform active:scale-95 hover:shadow-md">
+                        <div class="w-10 h-10 rounded-lg ${ev.bg} ${ev.color} flex justify-center items-center mr-3 flex-shrink-0">
+                            <i class="fa-solid ${ev.icon}"></i>
+                        </div>
+                        <div class="flex-1">
+                            <div class="font-bold text-sm dark:text-gray-100">${ev.title}</div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400 flex justify-between mt-0.5">
+                                <span>${ev.desc}</span>
+                                <span class="font-semibold text-gray-700 dark:text-gray-300">${ev.time}</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            // 組合當天的外框與標題 (帶有時間軸圓點)
+            htmlStr += `
+                <div class="relative pl-6 mb-8">
+                    <div class="absolute -left-[9px] top-1 w-4 h-4 rounded-full bg-blue-500 border-4 border-gray-50 dark:border-gray-900 shadow"></div>
+                    <h3 class="font-bold text-blue-600 dark:text-blue-400 mb-1 text-lg">Day ${day.day}：${day.title}</h3>
+                    <p class="text-xs text-gray-400 dark:text-gray-500 mb-3">${day.date}</p>
+                    ${eventsHtml}
+                </div>
+            `;
+        });
+
+        container.innerHTML = htmlStr;
+    }    
+    
     switchTab(tabId) {
         ['voting', 'timeline', 'bill'].forEach(id => {
             document.getElementById(`tab-${id}`).classList.add('hidden');
