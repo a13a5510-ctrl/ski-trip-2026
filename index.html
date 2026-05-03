@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>2026 日本滑雪戰情室</title>
-    
+    <link rel="manifest" href="manifest.json">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>tailwind.config = { darkMode: 'class', }</script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -107,6 +107,15 @@
     </div>
 
     <script type="module" src="app.js"></script>
-
+<script>
+    // 註冊 Service Worker 守護者
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./sw.js')
+                .then(reg => console.log('🛡️ Service Worker 註冊成功！守護範圍:', reg.scope))
+                .catch(err => console.log('❌ Service Worker 註冊失敗:', err));
+        });
+    }
+</script>
 </body>
 </html>
