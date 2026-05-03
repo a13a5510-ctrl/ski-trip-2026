@@ -3,15 +3,13 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebas
 import { getDatabase, ref, onValue, update, increment } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
 // ==========================================
-// 1. 資料庫服務類別 (FirebaseService)
-// 職責：純粹負責「搬運資料」，不處理任何畫面顯示
+// 1. 資料庫服務類別
 // ==========================================
 class FirebaseService {
     constructor() {
         const firebaseConfig = {
             apiKey: "AIzaSyD-mC8R_WvYV_7f2H9u_QyT_XfR-fX_k",
             authDomain: "ski-dashboard-2026-c146e.firebaseapp.com",
-            // 🌟 這裡使用你測試成功的「純淨版」URL (沒有 c146e)
             databaseURL: "https://ski-dashboard-2026-default-rtdb.firebaseio.com",
             projectId: "ski-dashboard-2026-c146e",
             storageBucket: "ski-dashboard-2026-c146e.firebasestorage.app",
@@ -22,7 +20,6 @@ class FirebaseService {
         this.db = getDatabase(app);
     }
 
-    // 監聽飯店變動
     listenToHotels(callback) {
         const hotelsRef = ref(this.db, 'hotels');
         onValue(hotelsRef, (snapshot) => {
@@ -31,7 +28,6 @@ class FirebaseService {
         });
     }
 
-    // 送出投票
     async submitVote(hotelId, change) {
         const hotelRef = ref(this.db, `hotels/${hotelId}`);
         return await update(hotelRef, {
@@ -41,23 +37,21 @@ class FirebaseService {
 }
 
 // ==========================================
-// 2. 使用者介面管理類別 (UIManager)
-// 職責：純粹負責「畫畫」，把資料變成漂亮的 HTML
+// 2. 使用者介面管理類別
 // ==========================================
 class UIManager {
     constructor() {
-        // 預先抓取 HTML 的神位 (ID)，方便之後呼叫
         this.elements = {
             loginScreen: document.getElementById('login-screen'),
             mainApp: document.getElementById('main-app'),
             greeting: document.getElementById('user-greeting'),
             tokenBalance: document.getElementById('token-balance'),
             hotelsContainer: document.getElementById('hotels-container'),
-            timelineContainer: document.querySelector('#tab-timeline .border-l-2')
+            timelineContainer: document.querySelector('#tab-timeline .border-l-2'),
+            billContainer: document.querySelector('#tab-bill .space-y-4') // 抓取帳單容器
         };
     }
 
-    // 登入後的畫面切換
     transitionToApp(name) {
         this.elements.greeting.innerText = `嗨，${name}`;
         this.elements.loginScreen.style.opacity = '0';
@@ -67,12 +61,10 @@ class UIManager {
         }, 300);
     }
 
-    // 更新代幣餘額顯示
     updateTokens(count) {
         this.elements.tokenBalance.innerText = count;
     }
 
-    // 顯化飯店卡片
     renderHotels(data, myVotes) {
         let html = '';
         Object.entries(data).forEach(([id, hotel]) => {
@@ -88,7 +80,7 @@ class UIManager {
                             <h3 class="font-bold text-lg dark:text-white">${hotel.name}</h3>
                             <span class="text-red-500 font-bold">¥${hotel.price.toLocaleString()}</span>
                         </div>
-                        <p class="text-xs text-gray-500 mb-4"><i class="fa-solid fa-location-dot mr-1"></i>${hotel.distance || hotel.desc}</p>
+                        <p class="text-xs text-gray-500 mb-4"><i class="fa-solid fa-location-dot mr-1"></i>${hotel.distance || hotel.desc || '優質住宿'}</p>
                         <div class="flex items-center justify-between bg-gray-50 dark:bg-gray-700 p-2 rounded-xl">
                             <span class="text-sm font-medium pl-2">投入籌碼：</span>
                             <div class="flex items-center space-x-3">
@@ -104,7 +96,6 @@ class UIManager {
         this.elements.hotelsContainer.innerHTML = html;
     }
 
-    // 顯化垂直時間軸
     renderTimeline(itinerary) {
         let html = '';
         itinerary.forEach(day => {
@@ -130,7 +121,27 @@ class UIManager {
         this.elements.timelineContainer.innerHTML = html;
     }
 
-    // 切換 Tab
+    // 🌟 新增：動態渲染 AA 帳單
+    renderDynamicBill(topHotel) {
+        const flightCost = 15400;
+        const liftCost = 4500;
+        const transportCost = 2100;
+        // 把日幣簡單當作台幣匯率 0.21 換算 (這裡可以自由調整)
+        const hotelCostTWD = topHotel ? Math.round(topHotel.price * 0.21) : 0; 
+        const total = flightCost + liftCost + transportCost + hotelCostTWD;
+
+        if (this.elements.billContainer) {
+            this.elements.billContainer.innerHTML = `
+                <div class="flex justify-between items-center"><div class="flex items-center text-gray-600 dark:text-gray-300"><span class="w-8 text-center mr-1">✈️</span> 機票</div><span class="font-medium dark:text-gray-200">NT$ ${flightCost.toLocaleString()}</span></div>
+                <div class="flex justify-between items-center"><div class="flex items-center text-gray-600 dark:text-gray-300"><span class="w-8 text-center mr-1">🏨</span> 住宿 (${topHotel ? topHotel.name : '未定'})</div><span class="font-medium dark:text-gray-200">NT$ ${hotelCostTWD.toLocaleString()}</span></div>
+                <div class="flex justify-between items-center"><div class="flex items-center text-gray-600 dark:text-gray-300"><span class="w-8 text-center mr-1">🎫</span> 纜車</div><span class="font-medium dark:text-gray-200">NT$ ${liftCost.toLocaleString()}</span></div>
+                <div class="flex justify-between items-center"><div class="flex items-center text-gray-600 dark:text-gray-300"><span class="w-8 text-center mr-1">🚌</span> 交通</div><span class="font-medium dark:text-gray-200">NT$ ${transportCost.toLocaleString()}</span></div>
+                <div class="flex justify-between items-center mt-4 pt-4 border-t border-gray-100 dark:border-gray-700"><div class="flex items-center text-gray-800 dark:text-white font-bold"><span class="w-8 text-center mr-1">💰</span> 總計需匯款</div><span class="font-black text-blue-600 dark:text-blue-400 text-xl">NT$ ${total.toLocaleString()}</span></div>
+            `;
+        }
+        return { flightCost, liftCost, transportCost, hotelCostTWD, total, hotelName: topHotel ? topHotel.name : '未定' };
+    }
+
     switchTab(tabId) {
         ['voting', 'timeline', 'bill'].forEach(id => document.getElementById(`tab-${id}`).classList.add('hidden'));
         document.getElementById(`tab-${tabId}`).classList.remove('hidden');
@@ -143,21 +154,19 @@ class UIManager {
 }
 
 // ==========================================
-// 3. 系統主程式類別 (SkiApp)
-// 職責：大腦，負責控制狀態與指揮其它組件
+// 3. 系統主程式類別
 // ==========================================
 class SkiApp {
     constructor() {
         this.state = {
             nickname: "",
-            tokens: 10,
-            myVotes: {} // 紀錄自己在每間飯店投了幾票
+            tokens: parseInt(localStorage.getItem('ski_tokens')) || 10,
+            myVotes: JSON.parse(localStorage.getItem('ski_my_votes')) || {},
+            currentBillData: null // 儲存目前的帳單計算結果
         };
-        
         this.service = new FirebaseService();
         this.ui = new UIManager();
         
-        // 固定的行程資料
         this.itinerary = [
             {
                 day: 1, title: "啟程與抵達", date: "2026/02/10",
@@ -175,64 +184,76 @@ class SkiApp {
         ];
     }
 
-    // 處理登入
     login() {
         const input = document.getElementById('nickname-input').value.trim();
         if (!input) return Swal.fire('徒兒！', '請輸入暱稱', 'warning');
         
         this.state.nickname = input;
         this.ui.transitionToApp(input);
-        this.ui.renderTimeline(this.itinerary); // 登入後順便畫行程表
+        this.ui.renderTimeline(this.itinerary);
+        this.ui.updateTokens(this.state.tokens);
         
-        // 開始監聽資料庫
+        // 監聽資料庫
         this.service.listenToHotels((data) => {
             this.ui.renderHotels(data, this.state.myVotes);
+            
+            // 🌟 新增：找出最高票的飯店，並計算動態帳單
+            let maxVotes = -1;
+            let topHotel = null;
+            Object.values(data).forEach(hotel => {
+                const votes = hotel.totalVotes || 0;
+                if (votes > maxVotes) {
+                    maxVotes = votes;
+                    topHotel = hotel;
+                }
+            });
+            this.state.currentBillData = this.ui.renderDynamicBill(topHotel);
         });
     }
 
-    // 處理投票 (🌟 樂觀 UI 實作)
     async handleVote(id, change) {
         const currentVal = this.state.myVotes[id] || 0;
-        
         if (change < 0 && currentVal === 0) return;
-        if (change > 0 && this.state.tokens <= 0) return Swal.fire('籌碼耗盡', '你的 10 枚雪花幣已用完', 'info');
+        if (change > 0 && this.state.tokens <= 0) return Swal.fire('籌碼耗盡', '你的雪花幣已用完', 'info');
 
-        // 1. 先更新本地狀態
         this.state.myVotes[id] = currentVal + change;
         this.state.tokens -= change;
         
-        // 2. 立即更新畫面代幣餘額
+        // 儲存進 LocalStorage，重整才不會洗掉
+        localStorage.setItem('ski_tokens', this.state.tokens);
+        localStorage.setItem('ski_my_votes', JSON.stringify(this.state.myVotes));
+        
         this.ui.updateTokens(this.state.tokens);
 
-        // 3. 背景悄悄送給 Firebase
         try {
             await this.service.submitVote(id, change);
         } catch (err) {
-            console.error("同步失敗", err);
-            // 如果失敗才把代幣還回去 (Rollback)
             this.state.myVotes[id] = currentVal;
             this.state.tokens += change;
             this.ui.updateTokens(this.state.tokens);
+            Swal.fire('斷線', '投票失敗請重試', 'error');
         }
+    }
+
+    copyBillMessage() {
+        if (!this.state.currentBillData) return;
+        const b = this.state.currentBillData;
+        const msg = `【${this.state.nickname}的滑雪帳單】\n✈️ 機票：NT$ ${b.flightCost.toLocaleString()}\n🏨 住宿(${b.hotelName})：NT$ ${b.hotelCostTWD.toLocaleString()}\n🎫 纜車：NT$ ${b.liftCost.toLocaleString()}\n🚌 交通：NT$ ${b.transportCost.toLocaleString()}\n💰 總計：NT$ ${b.total.toLocaleString()}\n\n🏦 請匯款至：(代碼 808) 1234-567-890123\n🙏 期待一起滑雪！`;
+        
+        navigator.clipboard.writeText(msg).then(() => Swal.fire('成功', '動態帳單已複製', 'success'));
     }
 }
 
 // ==========================================
-// 4. 初始化與全域綁定
+// 4. 初始化
 // ==========================================
 const app = new SkiApp();
-window.app = app; // 讓 HTML 的 onclick 可以用 window.app 存取
-
-// 綁定按鈕
+window.app = app; 
 window.login = () => app.login();
 window.switchTab = (id) => app.ui.switchTab(id);
 window.toggleDarkMode = () => {
     document.documentElement.classList.toggle('dark');
-    const icon = document.getElementById('theme-icon');
-    icon.classList.toggle('fa-moon');
-    icon.classList.toggle('fa-sun');
+    document.getElementById('theme-icon').classList.toggle('fa-moon');
+    document.getElementById('theme-icon').classList.toggle('fa-sun');
 };
-window.copyBillMessage = () => {
-    const msg = `【${app.state.nickname}的滑雪帳單】\n總計：NT$ 30,200\n期待與大家一起滑雪！`;
-    navigator.clipboard.writeText(msg).then(() => Swal.fire('成功', '訊息已複製', 'success'));
-};
+window.copyBillMessage = () => app.copyBillMessage();
