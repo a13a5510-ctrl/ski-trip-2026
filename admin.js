@@ -1,4 +1,4 @@
-// admin.js - 後台管理邏輯 (加入編輯功能版)
+// admin.js - 後台管理邏輯 (無地圖純淨版)
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getDatabase, ref, push, set, get, update, remove, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
@@ -14,8 +14,6 @@ class AdminPanel {
         };
         this.db = getDatabase(initializeApp(firebaseConfig));
         this.verifyAdmin();
-        
-        // 儲存目前抓到的飯店資料，方便編輯時提取
         this.currentHotelsData = {};
     }
 
@@ -28,17 +26,14 @@ class AdminPanel {
     listenToHotels() {
         onValue(ref(this.db, `${TRIP_ID}/hotels`), (snapshot) => {
             const data = snapshot.val();
-            this.currentHotelsData = data || {}; // 存起來備用
+            this.currentHotelsData = data || {}; 
             const container = document.getElementById('admin-hotels-list');
             if (!data) { container.innerHTML = '<p class="text-gray-500 text-sm">目前無任何住宿資料</p>'; return; }
             let html = '';
             Object.entries(data).forEach(([id, hotel]) => {
                 const isDeleted = hotel.is_deleted;
                 const statusHtml = isDeleted ? '<span class="ml-2 text-red-400 text-[10px] bg-red-900/30 px-2 py-0.5 rounded">已封印</span>' : '<span class="ml-2 text-green-400 text-[10px] bg-green-900/30 px-2 py-0.5 rounded">營業中</span>';
-                
-                // 🌟 新增了「編輯」按鈕
                 const editBtn = `<button onclick="window.editHotel('${id}')" class="text-xs border border-blue-600 text-blue-400 px-3 py-1 rounded hover:bg-blue-900/50 mr-2"><i class="fa-solid fa-pen"></i></button>`;
-                
                 const actionBtn = isDeleted 
                     ? `<button onclick="window.toggleSoftDelete('${id}', false)" class="text-xs border border-green-600 text-green-400 px-3 py-1 rounded hover:bg-green-900/50">解封</button>`
                     : `<button onclick="window.toggleSoftDelete('${id}', true)" class="text-xs border border-red-600 text-red-400 px-3 py-1 rounded hover:bg-red-900/50">封印</button>`;
@@ -48,7 +43,6 @@ class AdminPanel {
         });
     }
 
-    // 🌟 召喚編輯彈窗
     async editHotel(hotelId) {
         const hotel = this.currentHotelsData[hotelId];
         if (!hotel) return;
@@ -59,8 +53,6 @@ class AdminPanel {
                 <div class="space-y-4 text-left">
                     <div><label class="block text-sm font-bold text-gray-700 mb-1">飯店名稱</label><input id="edit-name" class="swal2-input !m-0 !w-full" value="${hotel.name}"></div>
                     <div><label class="block text-sm font-bold text-gray-700 mb-1">價格 (日幣)</label><input id="edit-price" type="number" class="swal2-input !m-0 !w-full" value="${hotel.price}"></div>
-                    <div><label class="block text-sm font-bold text-gray-700 mb-1">緯度 (Latitude)</label><input id="edit-lat" type="number" step="any" class="swal2-input !m-0 !w-full" value="${hotel.lat || ''}"></div>
-                    <div><label class="block text-sm font-bold text-gray-700 mb-1">經度 (Longitude)</label><input id="edit-lng" type="number" step="any" class="swal2-input !m-0 !w-full" value="${hotel.lng || ''}"></div>
                 </div>
             `,
             focusConfirm: false,
@@ -70,26 +62,16 @@ class AdminPanel {
             preConfirm: () => {
                 return {
                     name: document.getElementById('edit-name').value,
-                    price: parseInt(document.getElementById('edit-price').value),
-                    lat: parseFloat(document.getElementById('edit-lat').value) || 0,
-                    lng: parseFloat(document.getElementById('edit-lng').value) || 0
+                    price: parseInt(document.getElementById('edit-price').value)
                 }
             }
         });
 
         if (formValues) {
-            // 將新資料更新回 Firebase
             try {
-                await update(ref(this.db, `${TRIP_ID}/hotels/${hotelId}`), {
-                    name: formValues.name,
-                    price: formValues.price,
-                    lat: formValues.lat,
-                    lng: formValues.lng
-                });
+                await update(ref(this.db, `${TRIP_ID}/hotels/${hotelId}`), { name: formValues.name, price: formValues.price });
                 Swal.fire({ icon: 'success', title: '更新成功！', toast: true, position: 'top-end', timer: 2000, showConfirmButton: false });
-            } catch (error) {
-                Swal.fire('錯誤', '資料更新失敗', 'error');
-            }
+            } catch (error) { Swal.fire('錯誤', '資料更新失敗', 'error'); }
         }
     }
 
@@ -134,8 +116,6 @@ window.submitNewHotel = (e) => {
         price: parseInt(document.getElementById('hotel-price').value),
         desc: document.getElementById('hotel-desc').value,
         image: document.getElementById('hotel-image').value,
-        lat: parseFloat(document.getElementById('hotel-lat').value) || 0,
-        lng: parseFloat(document.getElementById('hotel-lng').value) || 0,
         totalVotes: 0,
         is_deleted: false
     });
@@ -152,5 +132,4 @@ window.submitNewTimeline = (e) => {
 
 window.resetAllVotes = () => adminApp.resetAllVotes(); window.clearTimeline = () => adminApp.clearTimeline(); window.deleteAllHotels = () => adminApp.deleteAllHotels(); 
 window.toggleSoftDelete = (id, status) => adminApp.toggleSoftDelete(id, status);
-// 🌟 暴露出給 html 呼叫
 window.editHotel = (id) => adminApp.editHotel(id);
