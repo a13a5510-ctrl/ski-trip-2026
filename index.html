@@ -4,11 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>2026 日本滑雪戰情室</title>
+    
     <link rel="manifest" href="manifest.json">
+
     <script src="https://cdn.tailwindcss.com"></script>
     <script>tailwind.config = { darkMode: 'class', }</script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+    
     <link rel="stylesheet" href="style.css">
 </head>
 <body class="bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-100 font-sans antialiased transition-colors duration-300">
@@ -23,12 +27,8 @@
             <div class="text-6xl mb-6 drop-shadow-md">🏂</div>
             <h1 class="text-3xl font-bold mb-2 text-gray-900 dark:text-white tracking-tight">2026 滑雪戰情室</h1>
             <p class="text-sm text-gray-500 dark:text-gray-400 mb-8 text-center">輸入暱稱，領取 10 枚雪花幣<br>開始規劃我們的極致旅程</p>
-            
             <input type="text" id="nickname-input" placeholder="請輸入你的暱稱 (如: 阿明)" class="w-full px-4 py-4 rounded-xl border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 mb-6 text-center text-lg shadow-inner">
-            
-            <button onclick="window.login()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-4 rounded-xl shadow-lg shadow-blue-500/30 transition transform active:scale-95 text-lg">
-                進入戰情室
-            </button>
+            <button onclick="window.login()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-4 rounded-xl shadow-lg shadow-blue-500/30 transition transform active:scale-95 text-lg">進入戰情室</button>
         </div>
 
         <div id="main-app" class="hidden flex-1 flex flex-col h-screen">
@@ -46,7 +46,12 @@
             <main class="flex-1 overflow-y-auto no-scrollbar pb-24 bg-gray-50 dark:bg-gray-900 transition-colors duration-300">
                 
                 <div id="tab-voting" class="p-4 space-y-5">
-                    <h2 class="font-bold text-gray-700 dark:text-gray-200 mb-2 px-2 text-lg"><i class="fa-solid fa-fire text-orange-500 mr-2"></i>熱門住宿候選</h2>
+                    <h2 class="font-bold text-gray-700 dark:text-gray-200 mb-2 px-2 text-lg"><i class="fa-solid fa-fire text-orange-500 mr-2"></i>即時戰況與投票</h2>
+                    
+                    <div class="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-4 mb-4">
+                        <div id="voting-chart" class="w-full h-48"></div>
+                    </div>
+
                     <div id="hotels-container"></div>
                 </div>
 
@@ -58,33 +63,13 @@
                 <div id="tab-bill" class="hidden p-4">
                     <div class="bg-white dark:bg-gray-800 p-6 rounded-2xl shadow-md border border-gray-100 dark:border-gray-700 relative overflow-hidden">
                         <div class="absolute top-0 right-0 w-32 h-32 bg-blue-50 dark:bg-gray-700 rounded-bl-full -z-10 opacity-50"></div>
-                        
                         <div class="flex flex-col gap-4 mb-6 pb-6 border-b border-gray-100 dark:border-gray-700">
-                            <div class="flex justify-between items-center">
-                                <label class="font-bold text-gray-700 dark:text-gray-300"><i class="fa-solid fa-users text-blue-500 mr-2"></i>參與人數</label>
-                                <div class="flex items-center bg-gray-100 dark:bg-gray-700 rounded-lg p-1 shadow-inner">
-                                    <button onclick="window.app.changePeople(-1)" class="w-8 h-8 flex justify-center items-center rounded bg-white dark:bg-gray-600 shadow-sm active:scale-90">-</button>
-                                    <span id="people-count" class="w-10 text-center font-bold text-gray-800 dark:text-white">4</span>
-                                    <button onclick="window.app.changePeople(1)" class="w-8 h-8 flex justify-center items-center rounded bg-white dark:bg-gray-600 shadow-sm active:scale-90">+</button>
-                                </div>
-                            </div>
-                            <div class="flex justify-between items-center">
-                                <label class="font-bold text-gray-700 dark:text-gray-300"><i class="fa-solid fa-coins text-yellow-500 mr-2"></i>結算幣值</label>
-                                <div class="flex gap-1 bg-gray-100 dark:bg-gray-700 p-1 rounded-lg">
-                                    <button onclick="window.app.setCurrency('JPY')" class="curr-btn px-3 py-1.5 rounded-md text-xs font-bold transition-colors" data-curr="JPY">JPY</button>
-                                    <button onclick="window.app.setCurrency('TWD')" class="curr-btn px-3 py-1.5 rounded-md text-xs font-bold transition-colors" data-curr="TWD">TWD</button>
-                                    <button onclick="window.app.setCurrency('HKD')" class="curr-btn px-3 py-1.5 rounded-md text-xs font-bold transition-colors" data-curr="HKD">HKD</button>
-                                </div>
-                            </div>
+                            <div class="flex justify-between items-center"><label class="font-bold text-gray-700 dark:text-gray-300"><i class="fa-solid fa-users text-blue-500 mr-2"></i>參與人數</label><div class="flex items-center bg-gray-100 dark:bg-gray-700 rounded-lg p-1 shadow-inner"><button onclick="window.app.changePeople(-1)" class="w-8 h-8 flex justify-center items-center rounded bg-white dark:bg-gray-600 shadow-sm active:scale-90">-</button><span id="people-count" class="w-10 text-center font-bold text-gray-800 dark:text-white">4</span><button onclick="window.app.changePeople(1)" class="w-8 h-8 flex justify-center items-center rounded bg-white dark:bg-gray-600 shadow-sm active:scale-90">+</button></div></div>
+                            <div class="flex justify-between items-center"><label class="font-bold text-gray-700 dark:text-gray-300"><i class="fa-solid fa-coins text-yellow-500 mr-2"></i>結算幣值</label><div class="flex gap-1 bg-gray-100 dark:bg-gray-700 p-1 rounded-lg"><button onclick="window.app.setCurrency('JPY')" class="curr-btn px-3 py-1.5 rounded-md text-xs font-bold transition-colors" data-curr="JPY">JPY</button><button onclick="window.app.setCurrency('TWD')" class="curr-btn px-3 py-1.5 rounded-md text-xs font-bold transition-colors" data-curr="TWD">TWD</button><button onclick="window.app.setCurrency('HKD')" class="curr-btn px-3 py-1.5 rounded-md text-xs font-bold transition-colors" data-curr="HKD">HKD</button></div></div>
                         </div>
-
                         <h3 class="font-bold text-xl mb-4 text-center text-gray-800 dark:text-white">個人 AA 預估明細</h3>
-                        
                         <div id="bill-details" class="space-y-4 mb-8"></div>
-                        
-                        <button onclick="window.copyBillMessage()" class="w-full bg-gray-900 dark:bg-blue-600 hover:bg-gray-800 dark:hover:bg-blue-500 text-white py-4 rounded-xl font-bold shadow-lg active:scale-95 transition-transform flex justify-center items-center text-lg">
-                            <i class="fa-regular fa-copy mr-2"></i> 複製請款訊息
-                        </button>
+                        <button onclick="window.copyBillMessage()" class="w-full bg-gray-900 dark:bg-blue-600 hover:bg-gray-800 dark:hover:bg-blue-500 text-white py-4 rounded-xl font-bold shadow-lg active:scale-95 transition-transform flex justify-center items-center text-lg"><i class="fa-regular fa-copy mr-2"></i> 複製請款訊息</button>
                     </div>
                 </div>
 
@@ -92,30 +77,24 @@
 
             <nav class="absolute bottom-0 w-full bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 pb-safe z-20 transition-colors duration-300">
                 <div class="flex justify-around items-center h-16 px-2">
-                    <button onclick="window.switchTab('voting')" class="nav-btn text-blue-600 flex flex-col items-center flex-1 py-1 rounded-lg transition-colors" data-tab="voting">
-                        <i class="fa-solid fa-check-to-slot text-2xl mb-1"></i><span class="text-[10px] font-bold">海選投票</span>
-                    </button>
-                    <button onclick="window.switchTab('timeline')" class="nav-btn text-gray-400 flex flex-col items-center flex-1 py-1 rounded-lg transition-colors" data-tab="timeline">
-                        <i class="fa-solid fa-route text-2xl mb-1"></i><span class="text-[10px] font-bold">行程表</span>
-                    </button>
-                    <button onclick="window.switchTab('bill')" class="nav-btn text-gray-400 flex flex-col items-center flex-1 py-1 rounded-lg transition-colors" data-tab="bill">
-                        <i class="fa-solid fa-file-invoice-dollar text-2xl mb-1"></i><span class="text-[10px] font-bold">AA 帳單</span>
-                    </button>
+                    <button onclick="window.switchTab('voting')" class="nav-btn text-blue-600 flex flex-col items-center flex-1 py-1 rounded-lg transition-colors" data-tab="voting"><i class="fa-solid fa-check-to-slot text-2xl mb-1"></i><span class="text-[10px] font-bold">海選投票</span></button>
+                    <button onclick="window.switchTab('timeline')" class="nav-btn text-gray-400 flex flex-col items-center flex-1 py-1 rounded-lg transition-colors" data-tab="timeline"><i class="fa-solid fa-route text-2xl mb-1"></i><span class="text-[10px] font-bold">行程表</span></button>
+                    <button onclick="window.switchTab('bill')" class="nav-btn text-gray-400 flex flex-col items-center flex-1 py-1 rounded-lg transition-colors" data-tab="bill"><i class="fa-solid fa-file-invoice-dollar text-2xl mb-1"></i><span class="text-[10px] font-bold">AA 帳單</span></button>
                 </div>
             </nav>
         </div>
     </div>
 
     <script type="module" src="app.js"></script>
-<script>
-    // 註冊 Service Worker 守護者
-    if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-            navigator.serviceWorker.register('./sw.js')
-                .then(reg => console.log('🛡️ Service Worker 註冊成功！守護範圍:', reg.scope))
-                .catch(err => console.log('❌ Service Worker 註冊失敗:', err));
-        });
-    }
-</script>
+    <script>
+        // 註冊 Service Worker 守護者
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('🛡️ Service Worker 註冊成功！守護範圍:', reg.scope))
+                    .catch(err => console.log('❌ Service Worker 註冊失敗:', err));
+            });
+        }
+    </script>
 </body>
 </html>
