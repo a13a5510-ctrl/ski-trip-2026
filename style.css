@@ -1,0 +1,15 @@
+/* style.css */
+
+/* 隱藏捲軸但保留滾動功能，讓畫面更像原生 App */
+.no-scrollbar::-webkit-scrollbar { 
+    display: none; 
+}
+.no-scrollbar { 
+    -ms-overflow-style: none; 
+    scrollbar-width: none; 
+}
+
+/* 移除手機端點擊按鈕時出現的藍色高光，提升點擊質感 */
+* { 
+    -webkit-tap-highlight-color: transparent; 
+}
