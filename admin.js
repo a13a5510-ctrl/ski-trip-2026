@@ -1,8 +1,16 @@
-// admin.js - 後台管理邏輯 (霸王色加冕版)
+// admin.js - SaaS 公版化邏輯 (Phase 1: 路由覺醒)
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getDatabase, ref, push, set, get, update, remove, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-const TRIP_ID = '2026_Japan';
+// 🌟 從網址列動態抓取 TRIP_ID，與前台保持一致！
+const urlParams = new URLSearchParams(window.location.search);
+const TRIP_ID = urlParams.get('id') || '2026_Japan';
+
+// 🌟 動態更新「前往前台」的連結，確保它能跳轉到正確的房間
+window.addEventListener('DOMContentLoaded', () => {
+    const frontLink = document.querySelector('a[href="index.html"]');
+    if (frontLink) frontLink.href = `index.html?id=${TRIP_ID}`;
+});
 
 class AdminPanel {
     constructor() {
@@ -13,7 +21,7 @@ class AdminPanel {
     }
 
     async verifyAdmin() {
-        const { value: password } = await Swal.fire({ title: '造物主密室', input: 'password', allowOutsideClick: false, confirmButtonText: '解鎖 🔓', confirmButtonColor: '#3B82F6' });
+        const { value: password } = await Swal.fire({ title: `解鎖房間: ${TRIP_ID}`, input: 'password', allowOutsideClick: false, confirmButtonText: '解鎖 🔓', confirmButtonColor: '#3B82F6' });
         if (password === 'snow2026') { 
             document.getElementById('admin-panel').classList.remove('hidden'); 
             this.listenToHotels(); 
@@ -45,8 +53,6 @@ class AdminPanel {
             
             Object.entries(data).forEach(([id, hotel]) => {
                 const isDeleted = hotel.is_deleted; const statusHtml = isDeleted ? '<span class="ml-2 text-red-400 text-[10px] bg-red-900/30 px-2 py-0.5 rounded">已封印</span>' : '<span class="ml-2 text-green-400 text-[10px] bg-green-900/30 px-2 py-0.5 rounded">營業中</span>';
-                
-                // 🌟 新增「皇冠按鈕」
                 const crownBtn = `<button onclick="window.forceCrown('${id}', '${hotel.name}')" class="text-xs border border-yellow-600 text-yellow-500 px-3 py-1 rounded hover:bg-yellow-900/50 mr-2" title="強制加冕"><i class="fa-solid fa-crown"></i></button>`;
                 const editBtn = `<button onclick="window.editHotel('${id}')" class="text-xs border border-blue-600 text-blue-400 px-3 py-1 rounded hover:bg-blue-900/50 mr-2"><i class="fa-solid fa-pen"></i></button>`;
                 const actionBtn = isDeleted ? `<button onclick="window.toggleSoftDelete('${id}', false)" class="text-xs border border-green-600 text-green-400 px-3 py-1 rounded hover:bg-green-900/50">解封</button>` : `<button onclick="window.toggleSoftDelete('${id}', true)" class="text-xs border border-red-600 text-red-400 px-3 py-1 rounded hover:bg-red-900/50">封印</button>`;
@@ -58,7 +64,6 @@ class AdminPanel {
         });
     }
 
-    // 🌟 新增：造物主的霸王色霸氣 (強制加冕)
     async forceCrown(hotelId, hotelName) {
         if ((await Swal.fire({ title: `加冕 ${hotelName}？`, text: '此舉將無視票數，直接讓該飯店成為最終贏家！', icon: 'warning', showCancelButton: true, confirmButtonColor: '#eab308', confirmButtonText: '👑 強制加冕' })).isConfirmed) {
             await update(ref(this.db, `${TRIP_ID}/settings`), { winnerId: hotelId });
@@ -66,7 +71,6 @@ class AdminPanel {
         }
     }
 
-    // 🌟 新增：撤銷加冕
     async clearCrown() {
         if ((await Swal.fire({ title: '撤銷加冕？', text: '系統將恢復以「最高票數」來決定贏家。', icon: 'question', showCancelButton: true, confirmButtonColor: '#eab308', confirmButtonText: '撤銷' })).isConfirmed) {
             await update(ref(this.db, `${TRIP_ID}/settings`), { winnerId: null });
@@ -93,9 +97,10 @@ class AdminPanel {
             if (snapshot.exists()) { 
                 const updates = {}; 
                 Object.keys(snapshot.val()).forEach(key => updates[`${TRIP_ID}/hotels/${key}/totalVotes`] = 0); 
-                updates[`${TRIP_ID}/settings/winnerId`] = null; // 🌟 順便拔除皇冠
+                updates[`${TRIP_ID}/settings/winnerId`] = null; 
                 await update(ref(this.db), updates); 
-                localStorage.removeItem('ski_tokens'); localStorage.removeItem('ski_my_votes'); Swal.fire('已歸零', '', 'success'); 
+                // ⚠️ 注意：後台無法幫使用者清空 LocalStorage，這部份使用者登入時我們有用 Tokens 判斷機制處理了
+                Swal.fire('已歸零', '', 'success'); 
             } 
         } 
     }
@@ -110,7 +115,5 @@ window.submitSettings = (e) => { e.preventDefault(); adminApp.updateSettings({ d
 window.submitNewHotel = (e) => { e.preventDefault(); adminApp.addNewHotel({ name: document.getElementById('hotel-name').value, price: parseInt(document.getElementById('hotel-price').value), desc: document.getElementById('hotel-desc').value, image: document.getElementById('hotel-image').value, totalVotes: 0, is_deleted: false }); };
 window.submitNewTimeline = (e) => { e.preventDefault(); adminApp.addTimelineEvent({ day: parseInt(document.getElementById('t-day').value), date: document.getElementById('t-date').value, time: document.getElementById('t-time').value, icon: document.getElementById('t-icon').value, title: document.getElementById('t-title').value, desc: document.getElementById('t-desc').value, hotelId: document.getElementById('t-hotel').value }); };
 window.resetAllVotes = () => adminApp.resetAllVotes(); window.clearTimeline = () => adminApp.clearTimeline(); window.deleteAllHotels = () => adminApp.deleteAllHotels(); window.toggleSoftDelete = (id, status) => adminApp.toggleSoftDelete(id, status); window.editHotel = (id) => adminApp.editHotel(id);
-
-// 🌟 暴露出皇冠控制按鈕
 window.forceCrown = (id, name) => adminApp.forceCrown(id, name);
 window.clearCrown = () => adminApp.clearCrown();
