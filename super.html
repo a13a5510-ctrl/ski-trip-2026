@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="zh-TW" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>上帝視角 - SaaS 授權管理中心</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+</head>
+<body class="bg-gray-900 text-gray-100 font-sans min-h-screen p-4 md:p-8">
+
+    <div id="super-panel" class="hidden max-w-4xl mx-auto bg-gray-800 rounded-2xl shadow-2xl border border-gray-700 overflow-hidden">
+        <div class="bg-purple-900 p-6 flex justify-between items-center border-b border-purple-700">
+            <h1 class="text-2xl font-black text-white"><i class="fa-solid fa-chess-king mr-2 text-yellow-400"></i>SaaS 授權發放中心 (上帝視角)</h1>
+        </div>
+        
+        <div class="p-6 md:p-8">
+            <div class="bg-gray-750 p-6 rounded-xl border border-gray-600 mb-8 shadow-inner">
+                <h2 class="text-xl font-bold mb-4 text-yellow-400"><i class="fa-solid fa-key mr-2"></i>鑄造全新金匙 (開通新房間)</h2>
+                <form id="create-license-form" class="space-y-4" onsubmit="window.submitNewLicense(event)">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm text-gray-400 mb-1">金匙代碼 (房間 ID，英文數字)</label>
+                            <div class="flex">
+                                <input type="text" id="l-id" required class="w-full bg-gray-900 border border-gray-600 rounded-l-lg px-3 py-2 text-white font-mono" placeholder="e.g. AMING_TOUR_01">
+                                <button type="button" onclick="window.generateRandomKey()" class="bg-gray-600 hover:bg-gray-500 px-3 rounded-r-lg border border-l-0 border-gray-600 transition"><i class="fa-solid fa-dice"></i></button>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm text-gray-400 mb-1">客戶備註 (例如：王大明家族旅遊)</label>
+                            <input type="text" id="l-memo" required class="w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-white">
+                        </div>
+                        <div>
+                            <label class="block text-sm text-gray-400 mb-1">授權類型</label>
+                            <select id="l-type" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-white" onchange="window.toggleDaysInput()">
+                                <option value="rental">⏳ 租借模式 (限時)</option>
+                                <option value="buyout">♾️ 買斷模式 (永久)</option>
+                            </select>
+                        </div>
+                        <div id="days-container">
+                            <label class="block text-sm text-gray-400 mb-1">租借天數 (從今天起算)</label>
+                            <input type="number" id="l-days" value="30" class="w-full bg-gray-900 border border-gray-600 rounded-lg px-3 py-2 text-white">
+                        </div>
+                    </div>
+                    <button type="submit" class="w-full bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-3 rounded-lg shadow-lg active:scale-95 transition text-lg mt-2"><i class="fa-solid fa-hammer mr-2"></i>鑄造並啟動金匙</button>
+                </form>
+            </div>
+
+            <div>
+                <h2 class="text-xl font-bold mb-4 text-purple-300"><i class="fa-solid fa-boxes-stacked mr-2"></i>已發行金匙庫</h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left text-sm whitespace-nowrap">
+                        <thead class="uppercase tracking-wider border-b-2 border-gray-600 text-gray-400 bg-gray-750">
+                            <tr>
+                                <th class="px-4 py-3">金匙代碼 (Room ID)</th>
+                                <th class="px-4 py-3">客戶備註</th>
+                                <th class="px-4 py-3">狀態</th>
+                                <th class="px-4 py-3">到期時間</th>
+                                <th class="px-4 py-3 text-center">神之制裁</th>
+                            </tr>
+                        </thead>
+                        <tbody id="licenses-list" class="divide-y divide-gray-700">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script type="module" src="js/super.js"></script>
+</body>
+</html>
