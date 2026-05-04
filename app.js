@@ -1,9 +1,14 @@
-// app.js - 2026 日本滑雪戰情室 核心邏輯
+// app.js - SaaS 公版化核心邏輯 (Phase 1: 路由與記憶隔離)
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getDatabase, ref, onValue, update, increment } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-const TRIP_ID = '2026_Japan';
+// 🌟 核心奧義 1：從網址列動態抓取 TRIP_ID，如果沒有，預設為原來的 2026_Japan 以保證舊版運作
+const urlParams = new URLSearchParams(window.location.search);
+const TRIP_ID = urlParams.get('id') || '2026_Japan';
 const LIFF_ID = '2009966916-2eO8R7Jn'; 
+
+// 🌟 核心奧義 2：記憶隔離器，為所有的本機快取加上專屬前綴
+const getStoreKey = (key) => `${TRIP_ID}_${key}`;
 
 class FirebaseService {
     constructor() {
@@ -75,7 +80,7 @@ class UIManager {
         Object.entries(data).forEach(([id, hotel]) => {
             if (hotel.is_deleted) return;
             const votes = hotel.totalVotes || 0; const myCount = myVotes[id] || 0;
-            const isWinner = isClosed && id === topHotelId; // 只有在封盤時才秀出皇冠
+            const isWinner = isClosed && id === topHotelId; 
             
             const borderClass = isWinner ? 'border-4 border-yellow-400 shadow-yellow-400/50 shadow-xl' : 'border border-gray-100 dark:border-gray-700 shadow-sm';
             const crownHtml = isWinner ? `<div class="absolute -top-4 -left-4 text-5xl drop-shadow-lg z-10 rotate-[-15deg]">👑</div>` : '';
@@ -101,7 +106,7 @@ class UIManager {
         this.elements.hotelsContainer.innerHTML = html;
     }
 
-    renderTimeline(itinerary, hotelName) { /* 省略，同上 */ 
+    renderTimeline(itinerary, hotelName) { 
         this.elements.timelineSubtitle.innerText = hotelName === 'all' ? '(整合版)' : `(${hotelName})`;
         let html = '';
         itinerary.forEach(day => {
@@ -111,7 +116,7 @@ class UIManager {
         if(html === '') html = '<div class="text-center py-10 text-gray-400">此住宿目前尚無專屬行程</div>';
         this.elements.timelineContainer.innerHTML = html;
     }
-    renderDynamicBill(topHotel, appState) { /* 省略，同上 */ 
+    renderDynamicBill(topHotel, appState) { 
         if (!this.elements.billDetails) return null;
         const rates = { JPY: 1, TWD: 0.21, HKD: 0.05 }; const symbols = { JPY: '¥', TWD: 'NT$', HKD: 'HK$' };
         const rate = rates[appState.currency]; const sym = symbols[appState.currency]; const p = appState.peopleCount;
@@ -134,10 +139,11 @@ class UIManager {
 class SkiApp {
     constructor() {
         this.state = {
-            lineProfile: null, myVotes: JSON.parse(localStorage.getItem('ski_my_votes')) || {},
+            lineProfile: null, 
+            // 🌟 記憶隔離：所有的快取資料都加上 TRIP_ID 作為鑰匙！
+            myVotes: JSON.parse(localStorage.getItem(getStoreKey('my_votes'))) || {},
             topHotelId: null, topHotel: null, currency: 'TWD', peopleCount: 4, currentBillData: null,
             rawTimelineData: null, selectedHotelIdForTimeline: 'all', selectedHotelNameForTimeline: 'all',
-            // 🌟 新增 winnerId 霸氣屬性
             isVotingClosed: false, deadline: null, defaultTokens: 10, tokens: null, winnerId: null
         };
         this.service = new FirebaseService();
@@ -148,13 +154,14 @@ class SkiApp {
 
     async initLiff() {
         const loadingText = document.getElementById('liff-loading'); const loginBtn = document.getElementById('liff-login-btn');
-        const savedProfile = JSON.parse(localStorage.getItem('ski_line_profile'));
+        const savedProfile = JSON.parse(localStorage.getItem(getStoreKey('line_profile')));
         if (!navigator.onLine && savedProfile) { this.handleLineLogin(savedProfile); return; }
 
         try {
             await liff.init({ liffId: LIFF_ID });
             if (liff.isLoggedIn()) {
-                const profile = await liff.getProfile(); localStorage.setItem('ski_line_profile', JSON.stringify(profile));
+                const profile = await liff.getProfile(); 
+                localStorage.setItem(getStoreKey('line_profile'), JSON.stringify(profile));
                 this.handleLineLogin(profile);
             } else { loadingText.classList.add('hidden'); loginBtn.classList.remove('hidden'); }
         } catch (err) { if (savedProfile) this.handleLineLogin(savedProfile); }
@@ -169,25 +176,24 @@ class SkiApp {
         this.service.listenToSettings((settings) => {
             this.state.deadline = settings.deadline;
             this.state.defaultTokens = settings.defaultTokens || 10;
-            this.state.winnerId = settings.winnerId || null; // 🌟 接收霸王色霸氣
+            this.state.winnerId = settings.winnerId || null; 
             
-            if (localStorage.getItem('ski_tokens') === null) {
+            if (localStorage.getItem(getStoreKey('tokens')) === null) {
                 this.state.tokens = this.state.defaultTokens;
-                localStorage.setItem('ski_tokens', this.state.tokens);
+                localStorage.setItem(getStoreKey('tokens'), this.state.tokens);
             } else {
-                this.state.tokens = parseInt(localStorage.getItem('ski_tokens'));
+                this.state.tokens = parseInt(localStorage.getItem(getStoreKey('tokens')));
             }
             this.ui.updateTokens(this.state.tokens);
             
             this.startCountdownTimer();
 
-            // 🌟 收到霸王色霸氣變更時，強制重算飯店資料以切換皇冠
-            const offHotels = JSON.parse(localStorage.getItem('ski_offline_hotels'));
+            const offHotels = JSON.parse(localStorage.getItem(getStoreKey('offline_hotels')));
             if (offHotels) this.processHotelData(offHotels);
         });
 
-        this.service.listenToHotels((data) => { localStorage.setItem('ski_offline_hotels', JSON.stringify(data)); this.processHotelData(data); });
-        this.service.listenToTimeline((data) => { localStorage.setItem('ski_offline_timeline', JSON.stringify(data || {})); this.processTimelineData(data); });
+        this.service.listenToHotels((data) => { localStorage.setItem(getStoreKey('offline_hotels'), JSON.stringify(data)); this.processHotelData(data); });
+        this.service.listenToTimeline((data) => { localStorage.setItem(getStoreKey('offline_timeline'), JSON.stringify(data || {})); this.processTimelineData(data); });
     }
 
     startCountdownTimer() {
@@ -197,10 +203,9 @@ class SkiApp {
             const distance = new Date(this.state.deadline).getTime() - new Date().getTime();
 
             if (distance < 0 || this.state.winnerId) { 
-                // 🌟 時間到，或是造物主強制加冕時，直接封盤！
                 if (!this.state.isVotingClosed) {
                     this.state.isVotingClosed = true;
-                    this.processHotelData(JSON.parse(localStorage.getItem('ski_offline_hotels')) || {});
+                    this.processHotelData(JSON.parse(localStorage.getItem(getStoreKey('offline_hotels'))) || {});
                 }
                 this.ui.updateCountdownUI(true);
             } else {
@@ -212,17 +217,13 @@ class SkiApp {
     }
 
     processHotelData(data) {
-        let maxVotes = -1; 
-        let calcTopHotel = null; 
-        let calcTopId = null;
-        
+        let maxVotes = -1; let calcTopHotel = null; let calcTopId = null;
         Object.entries(data).forEach(([id, hotel]) => {
             hotel.id = id; if (hotel.is_deleted) return;
             const votes = hotel.totalVotes || 0;
             if (votes > maxVotes) { maxVotes = votes; calcTopHotel = hotel; calcTopId = id; }
         });
         
-        // 👑 霸王色霸氣覆蓋：如果有造物主指定 winnerId，強制無視票數直接替換最高票！
         if (this.state.winnerId && data[this.state.winnerId] && !data[this.state.winnerId].is_deleted) {
             this.state.topHotelId = this.state.winnerId;
             this.state.topHotel = data[this.state.winnerId];
@@ -239,7 +240,7 @@ class SkiApp {
     }
 
     viewSpecificTimeline(hotelId, hotelName) { this.state.selectedHotelIdForTimeline = hotelId; this.state.selectedHotelNameForTimeline = hotelName; this.processTimelineData(this.state.rawTimelineData); this.ui.switchTab('timeline'); }
-    processTimelineData(data) { /* 省略，同上 */ 
+    processTimelineData(data) { 
         this.state.rawTimelineData = data; if (!data || Object.keys(data).length === 0) { this.ui.elements.timelineContainer.innerHTML = '<div class="text-gray-400 text-center py-10"><i class="fa-solid fa-person-digging text-3xl mb-3 block"></i>管理員尚在安排行程中...</div>'; return; }
         const targetHotelId = this.state.selectedHotelIdForTimeline; const daysMap = {};
         Object.values(data).forEach(ev => {
@@ -265,12 +266,12 @@ class SkiApp {
         if (change > 0 && this.state.tokens <= 0) return Swal.fire('籌碼耗盡', '你的雪花幣已用完', 'info');
 
         this.state.myVotes[id] = currentVal + change; this.state.tokens -= change;
-        localStorage.setItem('ski_tokens', this.state.tokens); localStorage.setItem('ski_my_votes', JSON.stringify(this.state.myVotes));
+        localStorage.setItem(getStoreKey('tokens'), this.state.tokens); localStorage.setItem(getStoreKey('my_votes'), JSON.stringify(this.state.myVotes));
         this.ui.updateTokens(this.state.tokens);
         try { await this.service.submitVote(id, change); } catch (err) { this.state.myVotes[id] = currentVal; this.state.tokens += change; this.ui.updateTokens(this.state.tokens); Swal.fire('斷線', '投票失敗請重試', 'error'); }
     }
 
-    copyBillMessage() { /* 省略，同上 */ 
+    copyBillMessage() { 
         if (!this.state.currentBillData) return;
         const b = this.state.currentBillData; const f = (val) => `${b.sym} ` + Math.round(val * b.rate).toLocaleString();
         const userName = this.state.lineProfile ? this.state.lineProfile.displayName : '雪友';
@@ -279,4 +280,4 @@ class SkiApp {
 }
 
 const app = new SkiApp(); window.app = app; 
-window.loginWithLine = () => app.loginWithLine(); window.switchTab = (id) => app.ui.switchTab(id); window.toggleChart = () => app.ui.toggleChart(); window.viewSpecificTimeline = (id, name) => app.viewSpecificTimeline(id, name); window.copyBillMessage = () => app.copyBillMessage(); window.toggleDarkMode = () => { document.documentElement.classList.toggle('dark'); document.getElementById('theme-icon').classList.toggle('fa-moon'); document.getElementById('theme-icon').classList.toggle('fa-sun'); if (app.ui.chartInstance) app.processHotelData(JSON.parse(localStorage.getItem('ski_offline_hotels'))); };
+window.loginWithLine = () => app.loginWithLine(); window.switchTab = (id) => app.ui.switchTab(id); window.toggleChart = () => app.ui.toggleChart(); window.viewSpecificTimeline = (id, name) => app.viewSpecificTimeline(id, name); window.copyBillMessage = () => app.copyBillMessage(); window.toggleDarkMode = () => { document.documentElement.classList.toggle('dark'); document.getElementById('theme-icon').classList.toggle('fa-moon'); document.getElementById('theme-icon').classList.toggle('fa-sun'); if (app.ui.chartInstance) app.processHotelData(JSON.parse(localStorage.getItem(getStoreKey('offline_hotels'))) || {}); };
