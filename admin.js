@@ -19,6 +19,17 @@ class AdminPanel {
     }
 
     async verifyAdmin() {
+        // 🛡️ 進入後台前，先檢測金匙結界！
+        const licenseSnap = await get(ref(this.db, `SYSTEM_LICENSES/${TRIP_ID}`));
+        const license = licenseSnap.val();
+
+        if (!license || license.status === 'blocked' || (license.type === 'rental' && Date.now() > license.expiresAt)) {
+            await Swal.fire({ icon: 'error', title: '授權失效', text: '您的房間金匙已到期或無效，請聯繫系統商續約。', confirmButtonColor: '#3B82F6' });
+            document.body.innerHTML = '<h1 style="color:white;text-align:center;margin-top:20vh;">🔒 後台已鎖定</h1>';
+            return;
+        }
+
+        // 金匙有效，繼續詢問房間密碼
         const pwSnapshot = await get(ref(this.db, `${TRIP_ID}/settings/adminPassword`));
         const truePassword = pwSnapshot.val() || 'snow2026';
 
@@ -28,7 +39,7 @@ class AdminPanel {
             document.getElementById('admin-panel').classList.remove('hidden'); 
             this.listenToHotels(); 
             this.listenToSettings();
-            this.listenToCosts(); // 🌟 啟動成本監聽
+            this.listenToCosts(); 
         } else { Swal.fire({ icon: 'error', title: '密碼錯誤' }).then(() => location.reload()); }
     }
 
