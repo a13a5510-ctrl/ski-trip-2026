@@ -1,12 +1,10 @@
-// admin.js - SaaS 公版化邏輯 (Phase 1: 路由覺醒)
+// admin.js - SaaS 公版化邏輯 (Phase 2: 獨立密碼與動態文案)
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getDatabase, ref, push, set, get, update, remove, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-// 🌟 從網址列動態抓取 TRIP_ID，與前台保持一致！
 const urlParams = new URLSearchParams(window.location.search);
 const TRIP_ID = urlParams.get('id') || '2026_Japan';
 
-// 🌟 動態更新「前往前台」的連結，確保它能跳轉到正確的房間
 window.addEventListener('DOMContentLoaded', () => {
     const frontLink = document.querySelector('a[href="index.html"]');
     if (frontLink) frontLink.href = `index.html?id=${TRIP_ID}`;
@@ -20,9 +18,14 @@ class AdminPanel {
         this.currentHotelsData = {};
     }
 
+    // 🌟 奧義：先偷看雲端密碼，再讓使用者輸入
     async verifyAdmin() {
+        const pwSnapshot = await get(ref(this.db, `${TRIP_ID}/settings/adminPassword`));
+        const truePassword = pwSnapshot.val() || 'snow2026';
+
         const { value: password } = await Swal.fire({ title: `解鎖房間: ${TRIP_ID}`, input: 'password', allowOutsideClick: false, confirmButtonText: '解鎖 🔓', confirmButtonColor: '#3B82F6' });
-        if (password === 'snow2026') { 
+        
+        if (password === truePassword) { 
             document.getElementById('admin-panel').classList.remove('hidden'); 
             this.listenToHotels(); 
             this.listenToSettings();
@@ -33,8 +36,19 @@ class AdminPanel {
         onValue(ref(this.db, `${TRIP_ID}/settings`), (snapshot) => {
             const data = snapshot.val();
             if (data) {
+                // 🌟 把雲端上的文案塞進輸入框
+                document.getElementById('s-event-name').value = data.eventName || '2026 滑雪戰情室';
+                document.getElementById('s-event-icon').value = data.eventIcon || '🏂';
+                document.getElementById('s-token-name').value = data.tokenName || '雪花幣';
+                document.getElementById('s-admin-pw').value = data.adminPassword || 'snow2026';
                 document.getElementById('s-tokens').value = data.defaultTokens || 10;
                 document.getElementById('s-deadline').value = data.deadline || '';
+            } else {
+                // 新房間預設值
+                document.getElementById('s-event-name').value = '新旅遊決策室';
+                document.getElementById('s-event-icon').value = '✈️';
+                document.getElementById('s-token-name').value = '代幣';
+                document.getElementById('s-admin-pw').value = 'snow2026';
             }
         });
     }
@@ -44,7 +58,7 @@ class AdminPanel {
         Swal.fire({ icon: 'success', title: '全局設定已更新', toast: true, position: 'top-end', timer: 2000, showConfirmButton: false });
     }
 
-    listenToHotels() { 
+    listenToHotels() { /* 省略，同上 */ 
         onValue(ref(this.db, `${TRIP_ID}/hotels`), (snapshot) => {
             const data = snapshot.val(); this.currentHotelsData = data || {}; 
             const container = document.getElementById('admin-hotels-list'); const hotelSelect = document.getElementById('t-hotel'); 
@@ -81,7 +95,7 @@ class AdminPanel {
     async editHotel(hotelId) { 
         const hotel = this.currentHotelsData[hotelId]; if (!hotel) return;
         const { value: formValues } = await Swal.fire({
-            title: `編輯: ${hotel.name}`, html: `<div class="space-y-4 text-left"><div><label class="block text-sm font-bold text-gray-700 mb-1">飯店名稱</label><input id="edit-name" class="swal2-input !m-0 !w-full" value="${hotel.name}"></div><div><label class="block text-sm font-bold text-gray-700 mb-1">價格 (日幣)</label><input id="edit-price" type="number" class="swal2-input !m-0 !w-full" value="${hotel.price}"></div></div>`,
+            title: `編輯: ${hotel.name}`, html: `<div class="space-y-4 text-left"><div><label class="block text-sm font-bold text-gray-700 mb-1">飯店名稱</label><input id="edit-name" class="swal2-input !m-0 !w-full" value="${hotel.name}"></div><div><label class="block text-sm font-bold text-gray-700 mb-1">價格</label><input id="edit-price" type="number" class="swal2-input !m-0 !w-full" value="${hotel.price}"></div></div>`,
             focusConfirm: false, showCancelButton: true, confirmButtonText: '儲存變更', cancelButtonText: '取消', preConfirm: () => { return { name: document.getElementById('edit-name').value, price: parseInt(document.getElementById('edit-price').value) } }
         });
         if (formValues) { try { await update(ref(this.db, `${TRIP_ID}/hotels/${hotelId}`), { name: formValues.name, price: formValues.price }); Swal.fire({ icon: 'success', title: '更新成功！', toast: true, position: 'top-end', timer: 2000, showConfirmButton: false }); } catch (error) { Swal.fire('錯誤', '資料更新失敗', 'error'); } }
@@ -99,8 +113,7 @@ class AdminPanel {
                 Object.keys(snapshot.val()).forEach(key => updates[`${TRIP_ID}/hotels/${key}/totalVotes`] = 0); 
                 updates[`${TRIP_ID}/settings/winnerId`] = null; 
                 await update(ref(this.db), updates); 
-                // ⚠️ 注意：後台無法幫使用者清空 LocalStorage，這部份使用者登入時我們有用 Tokens 判斷機制處理了
-                Swal.fire('已歸零', '', 'success'); 
+                Swal.fire('已歸零', '前端的代幣狀態將在下次登入或變更時自動重置', 'success'); 
             } 
         } 
     }
@@ -111,7 +124,19 @@ class AdminPanel {
 
 const adminApp = new AdminPanel();
 
-window.submitSettings = (e) => { e.preventDefault(); adminApp.updateSettings({ defaultTokens: parseInt(document.getElementById('s-tokens').value) || 10, deadline: document.getElementById('s-deadline').value }); };
+// 🌟 將新欄位一併送上雲端！
+window.submitSettings = (e) => { 
+    e.preventDefault(); 
+    adminApp.updateSettings({ 
+        eventName: document.getElementById('s-event-name').value,
+        eventIcon: document.getElementById('s-event-icon').value,
+        tokenName: document.getElementById('s-token-name').value,
+        adminPassword: document.getElementById('s-admin-pw').value,
+        defaultTokens: parseInt(document.getElementById('s-tokens').value) || 10, 
+        deadline: document.getElementById('s-deadline').value 
+    }); 
+};
+
 window.submitNewHotel = (e) => { e.preventDefault(); adminApp.addNewHotel({ name: document.getElementById('hotel-name').value, price: parseInt(document.getElementById('hotel-price').value), desc: document.getElementById('hotel-desc').value, image: document.getElementById('hotel-image').value, totalVotes: 0, is_deleted: false }); };
 window.submitNewTimeline = (e) => { e.preventDefault(); adminApp.addTimelineEvent({ day: parseInt(document.getElementById('t-day').value), date: document.getElementById('t-date').value, time: document.getElementById('t-time').value, icon: document.getElementById('t-icon').value, title: document.getElementById('t-title').value, desc: document.getElementById('t-desc').value, hotelId: document.getElementById('t-hotel').value }); };
 window.resetAllVotes = () => adminApp.resetAllVotes(); window.clearTimeline = () => adminApp.clearTimeline(); window.deleteAllHotels = () => adminApp.deleteAllHotels(); window.toggleSoftDelete = (id, status) => adminApp.toggleSoftDelete(id, status); window.editHotel = (id) => adminApp.editHotel(id);
