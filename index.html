@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>2026 日本滑雪戰情室</title>
+    <title id="ui-page-title">載入中...</title>
     <link rel="manifest" href="manifest.json">
     <script src="https://cdn.tailwindcss.com"></script>
     <script>tailwind.config = { darkMode: 'class', }</script>
@@ -20,19 +20,19 @@
     <div class="max-w-md mx-auto bg-white dark:bg-gray-800 h-[100dvh] relative shadow-2xl overflow-hidden flex flex-col transition-colors duration-300">
 
         <div id="login-screen" class="absolute inset-0 z-50 bg-white dark:bg-gray-800 flex flex-col justify-center items-center px-6 transition-opacity duration-300">
-            <div class="text-6xl mb-6 drop-shadow-md">🏂</div>
-            <h1 class="text-3xl font-bold mb-2 text-gray-900 dark:text-white tracking-tight">2026 滑雪戰情室</h1>
-            <p class="text-sm text-gray-500 dark:text-gray-400 mb-8 text-center">以 LINE 帳號快速認證登入<br>領取你的專屬雪花幣</p>
+            <div id="ui-hero-icon" class="text-6xl mb-6 drop-shadow-md">⏳</div>
+            <h1 id="ui-hero-title" class="text-3xl font-bold mb-2 text-gray-900 dark:text-white tracking-tight">載入中...</h1>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mb-8 text-center">以 LINE 帳號快速認證登入<br>領取你的專屬<span class="ui-token-name">代幣</span></p>
             <button id="liff-login-btn" onclick="window.loginWithLine()" class="hidden w-full bg-[#06C755] hover:bg-[#05b34c] text-white font-bold py-4 px-4 rounded-xl shadow-lg active:scale-95 text-lg flex justify-center items-center transition-transform"><i class="fa-brands fa-line text-2xl mr-2"></i> 以 LINE 帳號登入</button>
-            <p id="liff-loading" class="text-gray-500 text-sm flex items-center mt-4"><i class="fa-solid fa-spinner fa-spin mr-2"></i> 正在連線 LINE 總部...</p>
+            <p id="liff-loading" class="text-gray-500 text-sm flex items-center mt-4"><i class="fa-solid fa-spinner fa-spin mr-2"></i> 正在連線總部...</p>
         </div>
 
         <div id="main-app" class="hidden flex-1 flex flex-col h-full overflow-hidden">
             
             <header id="app-header" class="bg-blue-600 dark:bg-blue-800 text-white pt-12 pb-5 px-6 shadow-md z-10 shrink-0">
                 <div class="flex justify-between items-center mb-2">
-                    <div class="flex items-center"><img id="user-avatar" src="" alt="avatar" class="w-8 h-8 rounded-full border-2 border-white mr-2 hidden object-cover shadow-sm"><span id="user-greeting" class="font-bold text-xl">嗨，雪友</span></div>
-                    <div class="bg-blue-900 bg-opacity-40 px-3 py-1 rounded-full text-sm"><i class="fa-solid fa-snowflake text-blue-200 mr-2"></i>餘額: <strong id="token-balance" class="text-xl ml-1">10</strong></div>
+                    <div class="flex items-center"><img id="user-avatar" src="" alt="avatar" class="w-8 h-8 rounded-full border-2 border-white mr-2 hidden object-cover shadow-sm"><span id="user-greeting" class="font-bold text-xl">嗨，旅伴</span></div>
+                    <div class="bg-blue-900 bg-opacity-40 px-3 py-1 rounded-full text-sm"><i class="fa-solid fa-coins text-blue-200 mr-2"></i>餘額: <strong id="token-balance" class="text-xl ml-1">0</strong></div>
                 </div>
             </header>
 
