@@ -20,60 +20,54 @@
             <div class="mb-8">
                 <h2 class="text-lg font-bold mb-4 text-purple-400"><i class="fa-solid fa-gears mr-2"></i>⚙️ 房間全局設定</h2>
                 <form id="settings-form" class="space-y-4" onsubmit="window.submitSettings(event)">
-                    
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div class="bg-gray-750 p-3 rounded-lg border border-gray-600">
-                            <label class="block text-sm text-gray-400 mb-1">活動名稱 (標題)</label>
-                            <input type="text" id="s-event-name" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white font-bold" placeholder="2026 滑雪戰情室">
-                        </div>
-                        <div class="bg-gray-750 p-3 rounded-lg border border-gray-600">
-                            <label class="block text-sm text-gray-400 mb-1">活動圖示 (Emoji)</label>
-                            <input type="text" id="s-event-icon" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white font-bold" placeholder="🏂">
-                        </div>
-                        <div class="bg-gray-750 p-3 rounded-lg border border-gray-600">
-                            <label class="block text-sm text-gray-400 mb-1">代幣名稱</label>
-                            <input type="text" id="s-token-name" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white font-bold" placeholder="雪花幣">
-                        </div>
-                        <div class="bg-gray-750 p-3 rounded-lg border border-gray-600">
-                            <label class="block text-sm text-red-400 font-bold mb-1">🔑 本房間管理密碼</label>
-                            <input type="text" id="s-admin-pw" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white font-bold" placeholder="snow2026">
-                        </div>
+                        <div class="bg-gray-750 p-3 rounded-lg border border-gray-600"><label class="block text-sm text-gray-400 mb-1">活動名稱 (標題)</label><input type="text" id="s-event-name" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white font-bold" placeholder="2026 滑雪戰情室"></div>
+                        <div class="bg-gray-750 p-3 rounded-lg border border-gray-600"><label class="block text-sm text-gray-400 mb-1">活動圖示 (Emoji)</label><input type="text" id="s-event-icon" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white font-bold" placeholder="🏂"></div>
+                        <div class="bg-gray-750 p-3 rounded-lg border border-gray-600"><label class="block text-sm text-gray-400 mb-1">代幣名稱</label><input type="text" id="s-token-name" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white font-bold" placeholder="雪花幣"></div>
+                        <div class="bg-gray-750 p-3 rounded-lg border border-gray-600"><label class="block text-sm text-red-400 font-bold mb-1">🔑 本房間管理密碼</label><input type="text" id="s-admin-pw" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white font-bold" placeholder="snow2026"></div>
                     </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div class="bg-gray-750 p-3 rounded-lg border border-gray-600">
-                            <label class="block text-sm text-gray-400 mb-1">新加入預設代幣量</label>
-                            <input type="number" id="s-tokens" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white font-bold text-lg" value="10">
-                        </div>
-                        <div class="bg-gray-750 p-3 rounded-lg border border-gray-600">
-                            <label class="block text-sm text-gray-400 mb-1">投票截止時間 (封盤)</label>
-                            <input type="datetime-local" id="s-deadline" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white font-bold text-lg">
-                        </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="bg-gray-750 p-3 rounded-lg border border-gray-600"><label class="block text-sm text-gray-400 mb-1">預計住宿晚數</label><input type="number" id="s-nights" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white font-bold text-lg" value="4"></div>
+                        <div class="bg-gray-750 p-3 rounded-lg border border-gray-600"><label class="block text-sm text-gray-400 mb-1">新加入預設代幣量</label><input type="number" id="s-tokens" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white font-bold text-lg" value="10"></div>
+                        <div class="bg-gray-750 p-3 rounded-lg border border-gray-600"><label class="block text-sm text-gray-400 mb-1">投票截止 (封盤)</label><input type="datetime-local" id="s-deadline" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white font-bold text-lg"></div>
                     </div>
                     <button type="submit" class="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 rounded-lg transition-transform active:scale-95 text-lg shadow-lg"><i class="fa-solid fa-floppy-disk mr-2"></i>更新全局設定與換皮</button>
                 </form>
             </div>
 
             <div class="border-t border-gray-700 pt-6 mb-8">
-                <h2 class="text-lg font-bold mb-4 text-gray-300">➕ 新增住宿候選</h2>
+                <h2 class="text-lg font-bold mb-4 text-green-400"><i class="fa-solid fa-money-bill-wave mr-2"></i>💰 AA 帳單固定成本管理</h2>
+                <form id="add-cost-form" class="space-y-4 mb-4" onsubmit="window.submitNewCost(event)">
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div><label class="block text-sm text-gray-400 mb-1">圖示(Emoji)</label><input type="text" id="c-icon" required class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white" placeholder="✈️"></div>
+                        <div><label class="block text-sm text-gray-400 mb-1">項目名稱</label><input type="text" id="c-name" required class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white" placeholder="機票"></div>
+                        <div><label class="block text-sm text-gray-400 mb-1">總金額 (外幣)</label><input type="number" id="c-amount" required class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white" placeholder="10000"></div>
+                        <div><label class="block text-sm text-gray-400 mb-1">分攤方式</label><select id="c-type" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white"><option value="shared">👥 多人均攤</option><option value="individual">👤 個人固定</option></select></div>
+                    </div>
+                    <button type="submit" class="w-full bg-green-700 hover:bg-green-600 text-white font-bold py-2 rounded-lg transition-transform active:scale-95"><i class="fa-solid fa-plus mr-2"></i>新增帳單項目</button>
+                </form>
+                <div id="admin-costs-list" class="space-y-2 max-h-40 overflow-y-auto pr-2"></div>
+            </div>
+
+            <div class="border-t border-gray-700 pt-6 mb-8">
+                <h2 class="text-lg font-bold mb-4 text-gray-300">➕ 新增方案候補 (如住宿)</h2>
                 <form id="add-hotel-form" class="space-y-5 mb-8" onsubmit="window.submitNewHotel(event)">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
-                        <div><label class="block text-sm font-medium text-gray-400 mb-1">飯店名稱</label><input type="text" id="hotel-name" required class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"></div>
+                        <div><label class="block text-sm font-medium text-gray-400 mb-1">方案名稱</label><input type="text" id="hotel-name" required class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"></div>
                         <div><label class="block text-sm font-medium text-gray-400 mb-1">每晚價格 (外幣)</label><input type="number" id="hotel-price" required class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"></div>
                     </div>
                     <div><label class="block text-sm font-medium text-gray-400 mb-1">距離與特色描述</label><input type="text" id="hotel-desc" placeholder="例如：走路 5 分鐘" required class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"></div>
                     <div><label class="block text-sm font-medium text-gray-400 mb-1">封面圖片網址 (URL)</label><input type="url" id="hotel-image" placeholder="https://..." required class="w-full bg-gray-700 border border-gray-600 rounded-lg px-4 py-2 text-white"></div>
-                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-lg shadow-lg active:scale-95 transition-transform"><i class="fa-solid fa-cloud-arrow-up mr-2"></i> 發射住宿至雲端</button>
+                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-lg shadow-lg active:scale-95 transition-transform"><i class="fa-solid fa-cloud-arrow-up mr-2"></i> 發射方案至雲端</button>
                 </form>
-
-                <h2 class="text-lg font-bold mb-4 text-gray-300"><i class="fa-solid fa-list-check mr-2"></i>管理現有住宿 (封印與加冕)</h2>
+                <h2 class="text-lg font-bold mb-4 text-gray-300"><i class="fa-solid fa-list-check mr-2"></i>管理現有方案 (封印與加冕)</h2>
                 <div id="admin-hotels-list" class="space-y-3 max-h-60 overflow-y-auto pr-2"><p class="text-gray-500 text-sm">載入中...</p></div>
             </div>
 
             <div class="border-t border-gray-700 pt-6 mb-8">
                 <h2 class="text-lg font-bold mb-4 text-blue-400"><i class="fa-solid fa-clock mr-2"></i>⏳ 新增行程積木 (時光之柱)</h2>
                 <form id="add-timeline-form" class="space-y-4" onsubmit="window.submitNewTimeline(event)">
-                    <div class="bg-gray-750 p-3 rounded-lg border border-gray-600 mb-2"><label class="block text-sm text-blue-300 mb-1 font-bold">這塊行程積木屬於哪家住宿？</label><select id="t-hotel" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white font-medium"><option value="all">🌐 共用行程 (所有住宿皆適用)</option></select></div>
+                    <div class="bg-gray-750 p-3 rounded-lg border border-gray-600 mb-2"><label class="block text-sm text-blue-300 mb-1 font-bold">這塊行程積木屬於哪個方案？</label><select id="t-hotel" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white font-medium"><option value="all">🌐 共用行程 (所有方案皆適用)</option></select></div>
                     <div class="grid grid-cols-2 md:grid-cols-4 gap-4"><div><label class="block text-sm text-gray-400 mb-1">第幾天</label><input type="number" id="t-day" required class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white" value="1"></div><div><label class="block text-sm text-gray-400 mb-1">日期</label><input type="text" id="t-date" required class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white" placeholder="2/10"></div><div><label class="block text-sm text-gray-400 mb-1">時間</label><input type="time" id="t-time" required class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white"></div><div><label class="block text-sm text-gray-400 mb-1">分類圖示</label><select id="t-icon" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white"><option value="fa-plane">✈️ 飛機航班</option><option value="fa-bus">🚌 陸地交通</option><option value="fa-hotel">🏨 飯店住宿</option><option value="fa-person-snowboarding">🏂 極限運動</option><option value="fa-utensils">🍔 餐廳覓食</option><option value="fa-flag">🚩 集合地</option></select></div></div>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4"><div><label class="block text-sm text-gray-400 mb-1">標題</label><input type="text" id="t-title" required class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white" placeholder="星宇航空 JX800"></div><div><label class="block text-sm text-gray-400 mb-1">描述 (選填)</label><input type="text" id="t-desc" class="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white" placeholder="TPE ➔ NRT"></div></div>
                     <button type="submit" class="w-full bg-blue-900/80 hover:bg-blue-700 border border-blue-600 text-white font-bold py-3 rounded-lg transition-transform active:scale-95 text-lg"><i class="fa-solid fa-plus mr-2"></i>組裝行程積木</button>
@@ -86,7 +80,7 @@
                     <button onclick="window.clearCrown()" class="bg-yellow-900/50 hover:bg-yellow-800 text-yellow-300 border border-yellow-800 font-bold py-2 text-sm rounded-lg active:scale-95 transition-transform">撤銷加冕</button>
                     <button onclick="window.resetAllVotes()" class="bg-red-900/50 hover:bg-red-800 text-red-300 border border-red-800 font-bold py-2 text-sm rounded-lg active:scale-95 transition-transform">票數歸零</button>
                     <button onclick="window.clearTimeline()" class="bg-red-900/50 hover:bg-red-800 text-red-300 border border-red-800 font-bold py-2 text-sm rounded-lg active:scale-95 transition-transform">清空行程</button>
-                    <button onclick="window.deleteAllHotels()" class="bg-red-700 hover:bg-red-600 text-white font-bold py-2 text-sm rounded-lg active:scale-95 transition-transform shadow-lg">毀滅飯店</button>
+                    <button onclick="window.deleteAllHotels()" class="bg-red-700 hover:bg-red-600 text-white font-bold py-2 text-sm rounded-lg active:scale-95 transition-transform shadow-lg">毀滅方案</button>
                 </div>
             </div>
         </div>
