@@ -158,18 +158,46 @@ class UIManager {
 class SkiApp {
     constructor() {
         this.state = {
-            lineProfile: null, myVotes: JSON.parse(localStorage.getItem(getStoreKey('my_votes'))) || {},
+            lineProfile: null, 
+            myVotes: JSON.parse(localStorage.getItem(getStoreKey('my_votes'))) || {},
             topHotelId: null, topHotel: null, currency: 'TWD', peopleCount: 4, currentBillData: null,
             rawTimelineData: null, selectedHotelIdForTimeline: 'all', selectedHotelNameForTimeline: 'all',
             isVotingClosed: false, deadline: null, defaultTokens: 10, tokens: null, winnerId: null,
-            eventName: '旅程', tokenName: '代幣', hotelNights: 4, costsData: {} // 🌟 新增成本狀態
+            eventName: '旅程', tokenName: '代幣', hotelNights: 4, costsData: {}
         };
         this.service = new FirebaseService();
         this.ui = new UIManager();
         this.timerInterval = null;
-        this.initSettingsAndLiff();
+        
+        // 🌟 啟動時不再直接載入，而是先經過「金匙檢測結界」！
+        this.validateLicense(); 
     }
 
+    // 🛡️ 金匙檢測結界
+    async validateLicense() {
+        import { get } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js"; // 確保有引入 get
+        
+        try {
+            const snap = await get(ref(this.service.db, `SYSTEM_LICENSES/${TRIP_ID}`));
+            const license = snap.val();
+
+            if (!license || license.status === 'blocked') {
+                document.body.innerHTML = '<div style="height:100dvh;display:flex;flex-direction:column;justify-content:center;align-items:center;background:#111;color:white;padding:20px;text-align:center;"><i class="fa-solid fa-lock text-6xl text-red-500 mb-4"></i><h1 class="text-2xl font-bold mb-2">授權無效或已被凍結</h1><p class="text-gray-400">請聯繫系統商確認您的金匙狀態。</p></div>';
+                return;
+            }
+            if (license.type === 'rental' && Date.now() > license.expiresAt) {
+                document.body.innerHTML = '<div style="height:100dvh;display:flex;flex-direction:column;justify-content:center;align-items:center;background:#111;color:white;padding:20px;text-align:center;"><i class="fa-solid fa-hourglass-end text-6xl text-orange-500 mb-4"></i><h1 class="text-2xl font-bold mb-2">租賃合約已到期</h1><p class="text-gray-400">此旅遊空間已鎖定，請主辦人續費解鎖。</p></div>';
+                return;
+            }
+
+            // 檢測通過，准許放行！
+            this.initSettingsAndLiff();
+        } catch (error) {
+            console.error("授權檢測失敗", error);
+            // 離線狀態下，如果之前有登入過，還是讓他看舊資料
+            if (!navigator.onLine) this.initSettingsAndLiff();
+        }
+    }
     initSettingsAndLiff() {
         this.service.listenToSettings((settings) => {
             this.ui.applyThemeSettings(settings);
