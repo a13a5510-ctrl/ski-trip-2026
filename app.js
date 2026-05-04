@@ -1,13 +1,10 @@
-// app.js - SaaS 公版化核心邏輯 (Phase 1: 路由與記憶隔離)
+// app.js - SaaS 公版化邏輯 (Phase 2: 文案與標題去硬編碼化)
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getDatabase, ref, onValue, update, increment } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
-// 🌟 核心奧義 1：從網址列動態抓取 TRIP_ID，如果沒有，預設為原來的 2026_Japan 以保證舊版運作
 const urlParams = new URLSearchParams(window.location.search);
 const TRIP_ID = urlParams.get('id') || '2026_Japan';
 const LIFF_ID = '2009966916-2eO8R7Jn'; 
-
-// 🌟 核心奧義 2：記憶隔離器，為所有的本機快取加上專屬前綴
 const getStoreKey = (key) => `${TRIP_ID}_${key}`;
 
 class FirebaseService {
@@ -17,7 +14,7 @@ class FirebaseService {
     }
     listenToHotels(callback) { onValue(ref(this.db, `${TRIP_ID}/hotels`), (s) => callback(s.val() || {})); }
     listenToTimeline(callback) { onValue(ref(this.db, `${TRIP_ID}/timeline`), (s) => callback(s.val() || null)); }
-    listenToSettings(callback) { onValue(ref(this.db, `${TRIP_ID}/settings`), (s) => callback(s.val() || { defaultTokens: 10, deadline: null, winnerId: null })); }
+    listenToSettings(callback) { onValue(ref(this.db, `${TRIP_ID}/settings`), (s) => callback(s.val() || {})); }
     async submitVote(hotelId, change) { return await update(ref(this.db, `${TRIP_ID}/hotels/${hotelId}`), { totalVotes: increment(change) }); }
 }
 
@@ -32,6 +29,19 @@ class UIManager {
             countdownBanner: document.getElementById('countdown-banner'), countdownText: document.getElementById('countdown-text'), countdownIcon: document.getElementById('countdown-icon')
         };
         this.chartInstance = null; 
+    }
+
+    // 🌟 動態換皮魔法：接收後台設定，更新畫面文案
+    applyThemeSettings(settings) {
+        const eventName = settings.eventName || '2026 專屬戰情室';
+        const eventIcon = settings.eventIcon || '✈️';
+        const tokenName = settings.tokenName || '代幣';
+
+        document.getElementById('ui-page-title').innerText = eventName;
+        document.getElementById('ui-hero-title').innerText = eventName;
+        document.getElementById('ui-hero-icon').innerText = eventIcon;
+        
+        document.querySelectorAll('.ui-token-name').forEach(el => el.innerText = tokenName);
     }
 
     transitionToApp(profile) {
@@ -61,18 +71,13 @@ class UIManager {
         }
     }
 
-    renderChart(data, isClosed) {
+    renderChart(data, isClosed) { /* 省略，同上 */ 
         if (!this.elements.chartDom) return;
         const isDark = document.documentElement.classList.contains('dark'); const textColor = isDark ? '#e5e7eb' : '#374151';
         if (!this.chartInstance) { this.chartInstance = echarts.init(this.elements.chartDom); window.addEventListener('resize', () => this.chartInstance.resize()); }
         const chartData = Object.values(data).filter(h => !h.is_deleted).map(h => ({ name: h.name, value: h.totalVotes || 0 })).sort((a, b) => a.value - b.value);
         const chartColor = isClosed ? ['#ca8a04', '#facc15'] : ['#3b82f6', '#60a5fa'];
-        this.chartInstance.setOption({
-            backgroundColor: 'transparent', grid: { top: 10, bottom: 20, left: 10, right: 30, containLabel: true }, xAxis: { type: 'value', show: false },
-            yAxis: { type: 'category', data: chartData.map(d => d.name), axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: textColor, width: 100, overflow: 'truncate' } },
-            series: [{ type: 'bar', data: chartData.map(d => d.value), label: { show: true, position: 'right', color: chartColor[0], fontWeight: 'bold' }, itemStyle: { color: new echarts.graphic.LinearGradient(1, 0, 0, 0, [{ offset: 0, color: chartColor[0] }, { offset: 1, color: chartColor[1] }]), borderRadius: [0, 4, 4, 0] }, barWidth: '50%', realtimeSort: true }],
-            animationDuration: 500, animationEasing: 'cubicOut'
-        });
+        this.chartInstance.setOption({ backgroundColor: 'transparent', grid: { top: 10, bottom: 20, left: 10, right: 30, containLabel: true }, xAxis: { type: 'value', show: false }, yAxis: { type: 'category', data: chartData.map(d => d.name), axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: textColor, width: 100, overflow: 'truncate' } }, series: [{ type: 'bar', data: chartData.map(d => d.value), label: { show: true, position: 'right', color: chartColor[0], fontWeight: 'bold' }, itemStyle: { color: new echarts.graphic.LinearGradient(1, 0, 0, 0, [{ offset: 0, color: chartColor[0] }, { offset: 1, color: chartColor[1] }]), borderRadius: [0, 4, 4, 0] }, barWidth: '50%', realtimeSort: true }], animationDuration: 500, animationEasing: 'cubicOut' });
     }
 
     renderHotels(data, myVotes, isClosed, topHotelId) {
@@ -81,7 +86,6 @@ class UIManager {
             if (hotel.is_deleted) return;
             const votes = hotel.totalVotes || 0; const myCount = myVotes[id] || 0;
             const isWinner = isClosed && id === topHotelId; 
-            
             const borderClass = isWinner ? 'border-4 border-yellow-400 shadow-yellow-400/50 shadow-xl' : 'border border-gray-100 dark:border-gray-700 shadow-sm';
             const crownHtml = isWinner ? `<div class="absolute -top-4 -left-4 text-5xl drop-shadow-lg z-10 rotate-[-15deg]">👑</div>` : '';
             const voteBadge = isWinner ? `bg-yellow-500 text-gray-900` : `bg-blue-600 text-white`;
@@ -90,23 +94,13 @@ class UIManager {
                 ? `<span class="font-bold text-gray-500 text-sm">已封盤 (你的籌碼: ${myCount})</span>`
                 : `<div class="flex items-center space-x-3"><button onclick="window.app.handleVote('${id}', -1)" class="w-8 h-8 rounded-full bg-white dark:bg-gray-600 border active:scale-90">-</button><span class="font-bold text-blue-600 text-lg w-4 text-center">${myCount}</span><button onclick="window.app.handleVote('${id}', 1)" class="w-8 h-8 rounded-full bg-blue-100 text-blue-600 active:scale-90">+</button></div>`;
 
-            html += `
-                <div class="bg-white dark:bg-gray-800 rounded-2xl relative ${borderClass} overflow-hidden mb-6 transition-all duration-500">
-                    ${crownHtml}
-                    <div class="h-44 relative bg-cover bg-center" style="background-image: url('${hotel.image}');"><div class="absolute bottom-3 right-3 ${voteBadge} text-xs font-bold px-3 py-1 rounded-full shadow-lg">總計 ${votes} 票</div></div>
-                    <div class="p-4">
-                        <div class="flex justify-between items-start mb-1"><h3 class="font-bold text-lg dark:text-white ${isWinner ? 'text-yellow-600 dark:text-yellow-400' : ''}">${hotel.name}</h3><span class="text-red-500 font-bold">¥${hotel.price.toLocaleString()}</span></div>
-                        <p class="text-xs text-gray-500 mb-3"><i class="fa-solid fa-location-dot mr-1"></i>${hotel.distance || '優質住宿'}</p>
-                        <button onclick="window.viewSpecificTimeline('${id}', '${hotel.name}')" class="w-full mb-3 bg-blue-50 dark:bg-gray-700 text-blue-600 dark:text-blue-400 py-2 rounded-lg text-sm font-bold border border-blue-100 dark:border-gray-600 hover:bg-blue-100 transition active:scale-95"><i class="fa-regular fa-eye mr-1"></i> 觀看此住宿專屬行程</button>
-                        <div class="flex items-center justify-between bg-gray-50 dark:bg-gray-700 p-2 rounded-xl"><span class="text-sm font-medium pl-2">投入籌碼：</span>${voteControlHtml}</div>
-                    </div>
-                </div>`;
+            html += `<div class="bg-white dark:bg-gray-800 rounded-2xl relative ${borderClass} overflow-hidden mb-6 transition-all duration-500">${crownHtml}<div class="h-44 relative bg-cover bg-center" style="background-image: url('${hotel.image}');"><div class="absolute bottom-3 right-3 ${voteBadge} text-xs font-bold px-3 py-1 rounded-full shadow-lg">總計 ${votes} 票</div></div><div class="p-4"><div class="flex justify-between items-start mb-1"><h3 class="font-bold text-lg dark:text-white ${isWinner ? 'text-yellow-600 dark:text-yellow-400' : ''}">${hotel.name}</h3><span class="text-red-500 font-bold">¥${hotel.price.toLocaleString()}</span></div><p class="text-xs text-gray-500 mb-3"><i class="fa-solid fa-location-dot mr-1"></i>${hotel.distance || '優質住宿'}</p><button onclick="window.viewSpecificTimeline('${id}', '${hotel.name}')" class="w-full mb-3 bg-blue-50 dark:bg-gray-700 text-blue-600 dark:text-blue-400 py-2 rounded-lg text-sm font-bold border border-blue-100 dark:border-gray-600 hover:bg-blue-100 transition active:scale-95"><i class="fa-regular fa-eye mr-1"></i> 觀看此住宿專屬行程</button><div class="flex items-center justify-between bg-gray-50 dark:bg-gray-700 p-2 rounded-xl"><span class="text-sm font-medium pl-2">投入籌碼：</span>${voteControlHtml}</div></div></div>`;
         });
         if(html === '') html = '<div class="text-center py-10 text-gray-400">目前尚無開放投票的住宿</div>';
         this.elements.hotelsContainer.innerHTML = html;
     }
 
-    renderTimeline(itinerary, hotelName) { 
+    renderTimeline(itinerary, hotelName) { /* 省略，同上 */ 
         this.elements.timelineSubtitle.innerText = hotelName === 'all' ? '(整合版)' : `(${hotelName})`;
         let html = '';
         itinerary.forEach(day => {
@@ -116,7 +110,7 @@ class UIManager {
         if(html === '') html = '<div class="text-center py-10 text-gray-400">此住宿目前尚無專屬行程</div>';
         this.elements.timelineContainer.innerHTML = html;
     }
-    renderDynamicBill(topHotel, appState) { 
+    renderDynamicBill(topHotel, appState) { /* 省略，同上 */ 
         if (!this.elements.billDetails) return null;
         const rates = { JPY: 1, TWD: 0.21, HKD: 0.05 }; const symbols = { JPY: '¥', TWD: 'NT$', HKD: 'HK$' };
         const rate = rates[appState.currency]; const sym = symbols[appState.currency]; const p = appState.peopleCount;
@@ -140,16 +134,37 @@ class SkiApp {
     constructor() {
         this.state = {
             lineProfile: null, 
-            // 🌟 記憶隔離：所有的快取資料都加上 TRIP_ID 作為鑰匙！
             myVotes: JSON.parse(localStorage.getItem(getStoreKey('my_votes'))) || {},
             topHotelId: null, topHotel: null, currency: 'TWD', peopleCount: 4, currentBillData: null,
             rawTimelineData: null, selectedHotelIdForTimeline: 'all', selectedHotelNameForTimeline: 'all',
-            isVotingClosed: false, deadline: null, defaultTokens: 10, tokens: null, winnerId: null
+            isVotingClosed: false, deadline: null, defaultTokens: 10, tokens: null, winnerId: null,
+            eventName: '旅程', tokenName: '代幣'
         };
         this.service = new FirebaseService();
         this.ui = new UIManager();
         this.timerInterval = null;
-        this.initLiff();
+        this.initSettingsAndLiff();
+    }
+
+    // 🌟 先拉取設定（用來換皮），再拉起 LIFF
+    initSettingsAndLiff() {
+        this.service.listenToSettings((settings) => {
+            this.ui.applyThemeSettings(settings); // 換皮！
+            this.state.deadline = settings.deadline;
+            this.state.defaultTokens = settings.defaultTokens || 10;
+            this.state.winnerId = settings.winnerId || null; 
+            this.state.eventName = settings.eventName || '旅程';
+            this.state.tokenName = settings.tokenName || '代幣';
+
+            // 確保有先觸發 LIFF，避免被卡住
+            if (!this.state.liffInitialized) {
+                this.state.liffInitialized = true;
+                this.initLiff();
+            } else if (this.state.lineProfile) {
+                // 如果已經登入過了，設定改變時也要更新
+                this.handleLineLogin(this.state.lineProfile, settings);
+            }
+        });
     }
 
     async initLiff() {
@@ -173,24 +188,17 @@ class SkiApp {
         this.state.lineProfile = profile;
         this.ui.transitionToApp(profile); 
         
-        this.service.listenToSettings((settings) => {
-            this.state.deadline = settings.deadline;
-            this.state.defaultTokens = settings.defaultTokens || 10;
-            this.state.winnerId = settings.winnerId || null; 
-            
-            if (localStorage.getItem(getStoreKey('tokens')) === null) {
-                this.state.tokens = this.state.defaultTokens;
-                localStorage.setItem(getStoreKey('tokens'), this.state.tokens);
-            } else {
-                this.state.tokens = parseInt(localStorage.getItem(getStoreKey('tokens')));
-            }
-            this.ui.updateTokens(this.state.tokens);
-            
-            this.startCountdownTimer();
+        if (localStorage.getItem(getStoreKey('tokens')) === null) {
+            this.state.tokens = this.state.defaultTokens;
+            localStorage.setItem(getStoreKey('tokens'), this.state.tokens);
+        } else {
+            this.state.tokens = parseInt(localStorage.getItem(getStoreKey('tokens')));
+        }
+        this.ui.updateTokens(this.state.tokens);
+        this.startCountdownTimer();
 
-            const offHotels = JSON.parse(localStorage.getItem(getStoreKey('offline_hotels')));
-            if (offHotels) this.processHotelData(offHotels);
-        });
+        const offHotels = JSON.parse(localStorage.getItem(getStoreKey('offline_hotels')));
+        if (offHotels) this.processHotelData(offHotels);
 
         this.service.listenToHotels((data) => { localStorage.setItem(getStoreKey('offline_hotels'), JSON.stringify(data)); this.processHotelData(data); });
         this.service.listenToTimeline((data) => { localStorage.setItem(getStoreKey('offline_timeline'), JSON.stringify(data || {})); this.processTimelineData(data); });
@@ -201,7 +209,6 @@ class SkiApp {
         this.timerInterval = setInterval(() => {
             if (!this.state.deadline) { this.ui.elements.countdownBanner.classList.add('hidden'); return; }
             const distance = new Date(this.state.deadline).getTime() - new Date().getTime();
-
             if (distance < 0 || this.state.winnerId) { 
                 if (!this.state.isVotingClosed) {
                     this.state.isVotingClosed = true;
@@ -240,7 +247,7 @@ class SkiApp {
     }
 
     viewSpecificTimeline(hotelId, hotelName) { this.state.selectedHotelIdForTimeline = hotelId; this.state.selectedHotelNameForTimeline = hotelName; this.processTimelineData(this.state.rawTimelineData); this.ui.switchTab('timeline'); }
-    processTimelineData(data) { 
+    processTimelineData(data) { /* 省略，同上 */ 
         this.state.rawTimelineData = data; if (!data || Object.keys(data).length === 0) { this.ui.elements.timelineContainer.innerHTML = '<div class="text-gray-400 text-center py-10"><i class="fa-solid fa-person-digging text-3xl mb-3 block"></i>管理員尚在安排行程中...</div>'; return; }
         const targetHotelId = this.state.selectedHotelIdForTimeline; const daysMap = {};
         Object.values(data).forEach(ev => {
@@ -263,7 +270,7 @@ class SkiApp {
 
         const currentVal = this.state.myVotes[id] || 0;
         if (change < 0 && currentVal === 0) return;
-        if (change > 0 && this.state.tokens <= 0) return Swal.fire('籌碼耗盡', '你的雪花幣已用完', 'info');
+        if (change > 0 && this.state.tokens <= 0) return Swal.fire('籌碼耗盡', `你的${this.state.tokenName}已用完`, 'info');
 
         this.state.myVotes[id] = currentVal + change; this.state.tokens -= change;
         localStorage.setItem(getStoreKey('tokens'), this.state.tokens); localStorage.setItem(getStoreKey('my_votes'), JSON.stringify(this.state.myVotes));
@@ -274,8 +281,8 @@ class SkiApp {
     copyBillMessage() { 
         if (!this.state.currentBillData) return;
         const b = this.state.currentBillData; const f = (val) => `${b.sym} ` + Math.round(val * b.rate).toLocaleString();
-        const userName = this.state.lineProfile ? this.state.lineProfile.displayName : '雪友';
-        navigator.clipboard.writeText(`【${userName}的滑雪帳單 (共 ${this.state.peopleCount} 人分攤)】\n✈️ 機票：${f(b.flightAA)}\n🎫 纜車：${f(b.liftAA)}\n🚌 包車：${f(b.transportAA)}\n🏨 住宿(${b.hotelName})：${f(b.hotelAA)}\n💰 每人應付：${f(b.totalAA)}\n\n🏦 請匯款至：(代碼 808) 1234-567-890123\n🙏 期待一起滑雪！`).then(() => Swal.fire('成功', '動態帳單已複製', 'success'));
+        const userName = this.state.lineProfile ? this.state.lineProfile.displayName : '旅伴';
+        navigator.clipboard.writeText(`【${userName}的${this.state.eventName}帳單 (共 ${this.state.peopleCount} 人分攤)】\n✈️ 機票：${f(b.flightAA)}\n🎫 纜車：${f(b.liftAA)}\n🚌 包車：${f(b.transportAA)}\n🏨 住宿(${b.hotelName})：${f(b.hotelAA)}\n💰 每人應付：${f(b.totalAA)}\n\n🏦 請匯款至：(代碼 808) 1234-567-890123\n🙏 期待一起出發！`).then(() => Swal.fire('成功', '動態帳單已複製', 'success'));
     }
 }
 
