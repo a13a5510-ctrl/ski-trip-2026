@@ -7,18 +7,12 @@ const LIFF_ID = '2009966916-2eO8R7Jn';
 
 class FirebaseService {
     constructor() {
-        const firebaseConfig = {
-            apiKey: "AIzaSyD-mC8R_WvYV_7f2H9u_QyT_XfR-fX_k",
-            authDomain: "ski-dashboard-2026-c146e.firebaseapp.com",
-            databaseURL: "https://ski-dashboard-2026-default-rtdb.firebaseio.com",
-            projectId: "ski-dashboard-2026-c146e"
-        };
+        const firebaseConfig = { apiKey: "AIzaSyD-mC8R_WvYV_7f2H9u_QyT_XfR-fX_k", authDomain: "ski-dashboard-2026-c146e.firebaseapp.com", databaseURL: "https://ski-dashboard-2026-default-rtdb.firebaseio.com", projectId: "ski-dashboard-2026-c146e" };
         this.db = getDatabase(initializeApp(firebaseConfig));
     }
     listenToHotels(callback) { onValue(ref(this.db, `${TRIP_ID}/hotels`), (s) => callback(s.val() || {})); }
     listenToTimeline(callback) { onValue(ref(this.db, `${TRIP_ID}/timeline`), (s) => callback(s.val() || null)); }
-    // 🌟 新增：監聽全局設定
-    listenToSettings(callback) { onValue(ref(this.db, `${TRIP_ID}/settings`), (s) => callback(s.val() || { defaultTokens: 10, deadline: null })); }
+    listenToSettings(callback) { onValue(ref(this.db, `${TRIP_ID}/settings`), (s) => callback(s.val() || { defaultTokens: 10, deadline: null, winnerId: null })); }
     async submitVote(hotelId, change) { return await update(ref(this.db, `${TRIP_ID}/hotels/${hotelId}`), { totalVotes: increment(change) }); }
 }
 
@@ -49,7 +43,6 @@ class UIManager {
         else { container.classList.add('hidden'); icon.classList.replace('fa-chevron-up', 'fa-chevron-down'); }
     }
 
-    // 🌟 倒數計時更新器
     updateCountdownUI(isClosed, days, hours, mins, secs) {
         this.elements.countdownBanner.classList.remove('hidden');
         if (isClosed) {
@@ -68,7 +61,6 @@ class UIManager {
         const isDark = document.documentElement.classList.contains('dark'); const textColor = isDark ? '#e5e7eb' : '#374151';
         if (!this.chartInstance) { this.chartInstance = echarts.init(this.elements.chartDom); window.addEventListener('resize', () => this.chartInstance.resize()); }
         const chartData = Object.values(data).filter(h => !h.is_deleted).map(h => ({ name: h.name, value: h.totalVotes || 0 })).sort((a, b) => a.value - b.value);
-        // 如果封盤，圖表變成王者金色
         const chartColor = isClosed ? ['#ca8a04', '#facc15'] : ['#3b82f6', '#60a5fa'];
         this.chartInstance.setOption({
             backgroundColor: 'transparent', grid: { top: 10, bottom: 20, left: 10, right: 30, containLabel: true }, xAxis: { type: 'value', show: false },
@@ -78,20 +70,17 @@ class UIManager {
         });
     }
 
-    // 🌟 王者加冕邏輯：如果封盤，最高票加皇冠，隱藏按鈕
     renderHotels(data, myVotes, isClosed, topHotelId) {
         let html = '';
         Object.entries(data).forEach(([id, hotel]) => {
             if (hotel.is_deleted) return;
             const votes = hotel.totalVotes || 0; const myCount = myVotes[id] || 0;
-            const isWinner = isClosed && id === topHotelId;
+            const isWinner = isClosed && id === topHotelId; // 只有在封盤時才秀出皇冠
             
-            // 加冕樣式
             const borderClass = isWinner ? 'border-4 border-yellow-400 shadow-yellow-400/50 shadow-xl' : 'border border-gray-100 dark:border-gray-700 shadow-sm';
             const crownHtml = isWinner ? `<div class="absolute -top-4 -left-4 text-5xl drop-shadow-lg z-10 rotate-[-15deg]">👑</div>` : '';
             const voteBadge = isWinner ? `bg-yellow-500 text-gray-900` : `bg-blue-600 text-white`;
 
-            // 按鈕區域 (封盤則隱藏)
             const voteControlHtml = isClosed 
                 ? `<span class="font-bold text-gray-500 text-sm">已封盤 (你的籌碼: ${myCount})</span>`
                 : `<div class="flex items-center space-x-3"><button onclick="window.app.handleVote('${id}', -1)" class="w-8 h-8 rounded-full bg-white dark:bg-gray-600 border active:scale-90">-</button><span class="font-bold text-blue-600 text-lg w-4 text-center">${myCount}</span><button onclick="window.app.handleVote('${id}', 1)" class="w-8 h-8 rounded-full bg-blue-100 text-blue-600 active:scale-90">+</button></div>`;
@@ -112,7 +101,7 @@ class UIManager {
         this.elements.hotelsContainer.innerHTML = html;
     }
 
-    renderTimeline(itinerary, hotelName) { /* 省略，與上一版相同 */ 
+    renderTimeline(itinerary, hotelName) { /* 省略，同上 */ 
         this.elements.timelineSubtitle.innerText = hotelName === 'all' ? '(整合版)' : `(${hotelName})`;
         let html = '';
         itinerary.forEach(day => {
@@ -122,7 +111,7 @@ class UIManager {
         if(html === '') html = '<div class="text-center py-10 text-gray-400">此住宿目前尚無專屬行程</div>';
         this.elements.timelineContainer.innerHTML = html;
     }
-    renderDynamicBill(topHotel, appState) { /* 省略，與上一版相同 */ 
+    renderDynamicBill(topHotel, appState) { /* 省略，同上 */ 
         if (!this.elements.billDetails) return null;
         const rates = { JPY: 1, TWD: 0.21, HKD: 0.05 }; const symbols = { JPY: '¥', TWD: 'NT$', HKD: 'HK$' };
         const rate = rates[appState.currency]; const sym = symbols[appState.currency]; const p = appState.peopleCount;
@@ -148,8 +137,8 @@ class SkiApp {
             lineProfile: null, myVotes: JSON.parse(localStorage.getItem('ski_my_votes')) || {},
             topHotelId: null, topHotel: null, currency: 'TWD', peopleCount: 4, currentBillData: null,
             rawTimelineData: null, selectedHotelIdForTimeline: 'all', selectedHotelNameForTimeline: 'all',
-            // 🌟 封盤狀態
-            isVotingClosed: false, deadline: null, defaultTokens: 10, tokens: null
+            // 🌟 新增 winnerId 霸氣屬性
+            isVotingClosed: false, deadline: null, defaultTokens: 10, tokens: null, winnerId: null
         };
         this.service = new FirebaseService();
         this.ui = new UIManager();
@@ -177,12 +166,11 @@ class SkiApp {
         this.state.lineProfile = profile;
         this.ui.transitionToApp(profile); 
         
-        // 🌟 登入時先抓全局設定
         this.service.listenToSettings((settings) => {
             this.state.deadline = settings.deadline;
             this.state.defaultTokens = settings.defaultTokens || 10;
+            this.state.winnerId = settings.winnerId || null; // 🌟 接收霸王色霸氣
             
-            // 賦予代幣邏輯：如果有歷史紀錄就用舊的，如果沒有（新雪友），就給予後台設定的預設值
             if (localStorage.getItem('ski_tokens') === null) {
                 this.state.tokens = this.state.defaultTokens;
                 localStorage.setItem('ski_tokens', this.state.tokens);
@@ -192,54 +180,57 @@ class SkiApp {
             this.ui.updateTokens(this.state.tokens);
             
             this.startCountdownTimer();
+
+            // 🌟 收到霸王色霸氣變更時，強制重算飯店資料以切換皇冠
+            const offHotels = JSON.parse(localStorage.getItem('ski_offline_hotels'));
+            if (offHotels) this.processHotelData(offHotels);
         });
 
-        const offHotels = JSON.parse(localStorage.getItem('ski_offline_hotels')); if (offHotels) this.processHotelData(offHotels);
         this.service.listenToHotels((data) => { localStorage.setItem('ski_offline_hotels', JSON.stringify(data)); this.processHotelData(data); });
         this.service.listenToTimeline((data) => { localStorage.setItem('ski_offline_timeline', JSON.stringify(data || {})); this.processTimelineData(data); });
     }
 
-    // 🌟 啟動時鐘結界
     startCountdownTimer() {
         if (this.timerInterval) clearInterval(this.timerInterval);
         this.timerInterval = setInterval(() => {
-            if (!this.state.deadline) {
-                this.ui.elements.countdownBanner.classList.add('hidden');
-                return;
-            }
-            
-            const now = new Date().getTime();
-            const end = new Date(this.state.deadline).getTime();
-            const distance = end - now;
+            if (!this.state.deadline) { this.ui.elements.countdownBanner.classList.add('hidden'); return; }
+            const distance = new Date(this.state.deadline).getTime() - new Date().getTime();
 
-            if (distance < 0) {
-                // 時間到！封盤！
+            if (distance < 0 || this.state.winnerId) { 
+                // 🌟 時間到，或是造物主強制加冕時，直接封盤！
                 if (!this.state.isVotingClosed) {
                     this.state.isVotingClosed = true;
-                    // 觸發重新渲染畫面以拔除按鈕
                     this.processHotelData(JSON.parse(localStorage.getItem('ski_offline_hotels')) || {});
                 }
                 this.ui.updateCountdownUI(true);
             } else {
                 this.state.isVotingClosed = false;
-                const d = Math.floor(distance / (1000 * 60 * 60 * 24));
-                const h = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-                const m = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
-                const s = Math.floor((distance % (1000 * 60)) / 1000);
+                const d = Math.floor(distance / (1000 * 60 * 60 * 24)); const h = Math.floor((distance % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)); const m = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60)); const s = Math.floor((distance % (1000 * 60)) / 1000);
                 this.ui.updateCountdownUI(false, d, h, m, s);
             }
         }, 1000);
     }
 
     processHotelData(data) {
-        let maxVotes = -1; this.state.topHotel = null; this.state.topHotelId = null;
+        let maxVotes = -1; 
+        let calcTopHotel = null; 
+        let calcTopId = null;
+        
         Object.entries(data).forEach(([id, hotel]) => {
             hotel.id = id; if (hotel.is_deleted) return;
             const votes = hotel.totalVotes || 0;
-            if (votes > maxVotes) { maxVotes = votes; this.state.topHotel = hotel; this.state.topHotelId = id; }
+            if (votes > maxVotes) { maxVotes = votes; calcTopHotel = hotel; calcTopId = id; }
         });
         
-        // 傳入封盤狀態與王者 ID 給畫面渲染
+        // 👑 霸王色霸氣覆蓋：如果有造物主指定 winnerId，強制無視票數直接替換最高票！
+        if (this.state.winnerId && data[this.state.winnerId] && !data[this.state.winnerId].is_deleted) {
+            this.state.topHotelId = this.state.winnerId;
+            this.state.topHotel = data[this.state.winnerId];
+        } else {
+            this.state.topHotelId = calcTopId;
+            this.state.topHotel = calcTopHotel;
+        }
+        
         this.ui.renderHotels(data, this.state.myVotes, this.state.isVotingClosed, this.state.topHotelId); 
         this.ui.renderChart(data, this.state.isVotingClosed); 
         
@@ -248,7 +239,7 @@ class SkiApp {
     }
 
     viewSpecificTimeline(hotelId, hotelName) { this.state.selectedHotelIdForTimeline = hotelId; this.state.selectedHotelNameForTimeline = hotelName; this.processTimelineData(this.state.rawTimelineData); this.ui.switchTab('timeline'); }
-    processTimelineData(data) { /* 省略，與上一版相同 */ 
+    processTimelineData(data) { /* 省略，同上 */ 
         this.state.rawTimelineData = data; if (!data || Object.keys(data).length === 0) { this.ui.elements.timelineContainer.innerHTML = '<div class="text-gray-400 text-center py-10"><i class="fa-solid fa-person-digging text-3xl mb-3 block"></i>管理員尚在安排行程中...</div>'; return; }
         const targetHotelId = this.state.selectedHotelIdForTimeline; const daysMap = {};
         Object.values(data).forEach(ev => {
@@ -267,7 +258,6 @@ class SkiApp {
 
     async handleVote(id, change) {
         if (!navigator.onLine) return Swal.fire('極地狀態', '目前處於離線狀態，無法進行投票喔！', 'warning');
-        // 🌟 防駭客終極防禦：就算把 HTML 上的按鈕偷偷變回來，大腦也不給投！
         if (this.state.isVotingClosed) return Swal.fire('封盤', '投票已結束，無法再變更！', 'error');
 
         const currentVal = this.state.myVotes[id] || 0;
@@ -280,7 +270,7 @@ class SkiApp {
         try { await this.service.submitVote(id, change); } catch (err) { this.state.myVotes[id] = currentVal; this.state.tokens += change; this.ui.updateTokens(this.state.tokens); Swal.fire('斷線', '投票失敗請重試', 'error'); }
     }
 
-    copyBillMessage() { /* 省略，與上一版相同 */ 
+    copyBillMessage() { /* 省略，同上 */ 
         if (!this.state.currentBillData) return;
         const b = this.state.currentBillData; const f = (val) => `${b.sym} ` + Math.round(val * b.rate).toLocaleString();
         const userName = this.state.lineProfile ? this.state.lineProfile.displayName : '雪友';
