@@ -1,4 +1,4 @@
-// admin.js - 後台管理邏輯
+// admin.js - 後台管理邏輯 (霸王色加冕版)
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getDatabase, ref, push, set, get, update, remove, onValue } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
@@ -17,11 +17,10 @@ class AdminPanel {
         if (password === 'snow2026') { 
             document.getElementById('admin-panel').classList.remove('hidden'); 
             this.listenToHotels(); 
-            this.listenToSettings(); // 🌟 讀取設定
+            this.listenToSettings();
         } else { Swal.fire({ icon: 'error', title: '密碼錯誤' }).then(() => location.reload()); }
     }
 
-    // 🌟 新增：讀取與更新設定
     listenToSettings() {
         onValue(ref(this.db, `${TRIP_ID}/settings`), (snapshot) => {
             const data = snapshot.val();
@@ -34,27 +33,48 @@ class AdminPanel {
 
     async updateSettings(settings) {
         await update(ref(this.db, `${TRIP_ID}/settings`), settings);
-        Swal.fire({ icon: 'success', title: '全局設定已更新，前台已同步！', toast: true, position: 'top-end', timer: 2000, showConfirmButton: false });
+        Swal.fire({ icon: 'success', title: '全局設定已更新', toast: true, position: 'top-end', timer: 2000, showConfirmButton: false });
     }
 
-    listenToHotels() { /* 省略，與上一版相同 */ 
+    listenToHotels() { 
         onValue(ref(this.db, `${TRIP_ID}/hotels`), (snapshot) => {
             const data = snapshot.val(); this.currentHotelsData = data || {}; 
             const container = document.getElementById('admin-hotels-list'); const hotelSelect = document.getElementById('t-hotel'); 
             if (!data) { container.innerHTML = '<p class="text-gray-500 text-sm">目前無任何住宿資料</p>'; hotelSelect.innerHTML = '<option value="all">🌐 共用行程 (所有住宿皆適用)</option>'; return; }
             let html = ''; let optionsHtml = '<option value="all">🌐 共用行程 (所有住宿皆適用)</option>'; 
+            
             Object.entries(data).forEach(([id, hotel]) => {
                 const isDeleted = hotel.is_deleted; const statusHtml = isDeleted ? '<span class="ml-2 text-red-400 text-[10px] bg-red-900/30 px-2 py-0.5 rounded">已封印</span>' : '<span class="ml-2 text-green-400 text-[10px] bg-green-900/30 px-2 py-0.5 rounded">營業中</span>';
+                
+                // 🌟 新增「皇冠按鈕」
+                const crownBtn = `<button onclick="window.forceCrown('${id}', '${hotel.name}')" class="text-xs border border-yellow-600 text-yellow-500 px-3 py-1 rounded hover:bg-yellow-900/50 mr-2" title="強制加冕"><i class="fa-solid fa-crown"></i></button>`;
                 const editBtn = `<button onclick="window.editHotel('${id}')" class="text-xs border border-blue-600 text-blue-400 px-3 py-1 rounded hover:bg-blue-900/50 mr-2"><i class="fa-solid fa-pen"></i></button>`;
                 const actionBtn = isDeleted ? `<button onclick="window.toggleSoftDelete('${id}', false)" class="text-xs border border-green-600 text-green-400 px-3 py-1 rounded hover:bg-green-900/50">解封</button>` : `<button onclick="window.toggleSoftDelete('${id}', true)" class="text-xs border border-red-600 text-red-400 px-3 py-1 rounded hover:bg-red-900/50">封印</button>`;
-                html += `<div class="flex justify-between items-center bg-gray-750 border border-gray-700 p-2 rounded-lg ${isDeleted ? 'opacity-50' : ''}"><div><div class="text-sm font-bold">${hotel.name} ${statusHtml}</div></div><div>${editBtn}${actionBtn}</div></div>`;
+                
+                html += `<div class="flex justify-between items-center bg-gray-750 border border-gray-700 p-2 rounded-lg ${isDeleted ? 'opacity-50' : ''}"><div><div class="text-sm font-bold">${hotel.name} ${statusHtml}</div></div><div class="flex">${crownBtn}${editBtn}${actionBtn}</div></div>`;
                 if (!isDeleted) optionsHtml += `<option value="${id}">🏨 專屬：${hotel.name}</option>`;
             });
             container.innerHTML = html; if (hotelSelect) hotelSelect.innerHTML = optionsHtml;
         });
     }
 
-    async editHotel(hotelId) { /* 省略，與上一版相同 */ 
+    // 🌟 新增：造物主的霸王色霸氣 (強制加冕)
+    async forceCrown(hotelId, hotelName) {
+        if ((await Swal.fire({ title: `加冕 ${hotelName}？`, text: '此舉將無視票數，直接讓該飯店成為最終贏家！', icon: 'warning', showCancelButton: true, confirmButtonColor: '#eab308', confirmButtonText: '👑 強制加冕' })).isConfirmed) {
+            await update(ref(this.db, `${TRIP_ID}/settings`), { winnerId: hotelId });
+            Swal.fire('加冕成功', '', 'success');
+        }
+    }
+
+    // 🌟 新增：撤銷加冕
+    async clearCrown() {
+        if ((await Swal.fire({ title: '撤銷加冕？', text: '系統將恢復以「最高票數」來決定贏家。', icon: 'question', showCancelButton: true, confirmButtonColor: '#eab308', confirmButtonText: '撤銷' })).isConfirmed) {
+            await update(ref(this.db, `${TRIP_ID}/settings`), { winnerId: null });
+            Swal.fire('已撤銷', '', 'success');
+        }
+    }
+
+    async editHotel(hotelId) { 
         const hotel = this.currentHotelsData[hotelId]; if (!hotel) return;
         const { value: formValues } = await Swal.fire({
             title: `編輯: ${hotel.name}`, html: `<div class="space-y-4 text-left"><div><label class="block text-sm font-bold text-gray-700 mb-1">飯店名稱</label><input id="edit-name" class="swal2-input !m-0 !w-full" value="${hotel.name}"></div><div><label class="block text-sm font-bold text-gray-700 mb-1">價格 (日幣)</label><input id="edit-price" type="number" class="swal2-input !m-0 !w-full" value="${hotel.price}"></div></div>`,
@@ -66,22 +86,31 @@ class AdminPanel {
     async toggleSoftDelete(hotelId, deleteStatus) { await update(ref(this.db, `${TRIP_ID}/hotels/${hotelId}`), { is_deleted: deleteStatus }); }
     async addNewHotel(hotelData) { await set(push(ref(this.db, `${TRIP_ID}/hotels`)), hotelData); document.getElementById('add-hotel-form').reset(); Swal.fire({ icon:'success', title:'住宿新增成功', toast:true, position:'top-end', timer:2000, showConfirmButton:false }); }
     async addTimelineEvent(eventData) { await set(push(ref(this.db, `${TRIP_ID}/timeline`)), eventData); document.getElementById('t-title').value = ''; document.getElementById('t-desc').value = ''; document.getElementById('t-time').value = ''; Swal.fire({ icon:'success', title:'行程積木已組裝', toast:true, position:'top-end', timer:2000, showConfirmButton:false }); }
-    async resetAllVotes() { if ((await Swal.fire({ title: '重置票數？', icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: '歸零' })).isConfirmed) { const snapshot = await get(ref(this.db, `${TRIP_ID}/hotels`)); if (snapshot.exists()) { const updates = {}; Object.keys(snapshot.val()).forEach(key => updates[`${TRIP_ID}/hotels/${key}/totalVotes`] = 0); await update(ref(this.db), updates); localStorage.removeItem('ski_tokens'); localStorage.removeItem('ski_my_votes'); Swal.fire('已歸零', '', 'success'); } } }
+    
+    async resetAllVotes() { 
+        if ((await Swal.fire({ title: '重置票數？', icon: 'warning', showCancelButton: true, confirmButtonColor: '#d33', confirmButtonText: '歸零' })).isConfirmed) { 
+            const snapshot = await get(ref(this.db, `${TRIP_ID}/hotels`)); 
+            if (snapshot.exists()) { 
+                const updates = {}; 
+                Object.keys(snapshot.val()).forEach(key => updates[`${TRIP_ID}/hotels/${key}/totalVotes`] = 0); 
+                updates[`${TRIP_ID}/settings/winnerId`] = null; // 🌟 順便拔除皇冠
+                await update(ref(this.db), updates); 
+                localStorage.removeItem('ski_tokens'); localStorage.removeItem('ski_my_votes'); Swal.fire('已歸零', '', 'success'); 
+            } 
+        } 
+    }
+    
     async clearTimeline() { if ((await Swal.fire({ title: '刪除所有行程？', icon: 'error', showCancelButton: true, confirmButtonColor: '#000', confirmButtonText: '炸毀' })).isConfirmed) { await remove(ref(this.db, `${TRIP_ID}/timeline`)); Swal.fire('已清空', '', 'success'); } }
     async deleteAllHotels() { if ((await Swal.fire({ title: '核彈確認', icon: 'error', showCancelButton: true, confirmButtonColor: '#000', confirmButtonText: '發射' })).isConfirmed) { await remove(ref(this.db, `${TRIP_ID}/hotels`)); Swal.fire('已毀滅', '', 'success'); } }
 }
 
 const adminApp = new AdminPanel();
 
-// 🌟 暴露出設定按鈕的介面
-window.submitSettings = (e) => {
-    e.preventDefault();
-    adminApp.updateSettings({
-        defaultTokens: parseInt(document.getElementById('s-tokens').value) || 10,
-        deadline: document.getElementById('s-deadline').value
-    });
-};
-
+window.submitSettings = (e) => { e.preventDefault(); adminApp.updateSettings({ defaultTokens: parseInt(document.getElementById('s-tokens').value) || 10, deadline: document.getElementById('s-deadline').value }); };
 window.submitNewHotel = (e) => { e.preventDefault(); adminApp.addNewHotel({ name: document.getElementById('hotel-name').value, price: parseInt(document.getElementById('hotel-price').value), desc: document.getElementById('hotel-desc').value, image: document.getElementById('hotel-image').value, totalVotes: 0, is_deleted: false }); };
 window.submitNewTimeline = (e) => { e.preventDefault(); adminApp.addTimelineEvent({ day: parseInt(document.getElementById('t-day').value), date: document.getElementById('t-date').value, time: document.getElementById('t-time').value, icon: document.getElementById('t-icon').value, title: document.getElementById('t-title').value, desc: document.getElementById('t-desc').value, hotelId: document.getElementById('t-hotel').value }); };
 window.resetAllVotes = () => adminApp.resetAllVotes(); window.clearTimeline = () => adminApp.clearTimeline(); window.deleteAllHotels = () => adminApp.deleteAllHotels(); window.toggleSoftDelete = (id, status) => adminApp.toggleSoftDelete(id, status); window.editHotel = (id) => adminApp.editHotel(id);
+
+// 🌟 暴露出皇冠控制按鈕
+window.forceCrown = (id, name) => adminApp.forceCrown(id, name);
+window.clearCrown = () => adminApp.clearCrown();
