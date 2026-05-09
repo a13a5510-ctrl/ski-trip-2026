@@ -1,13 +1,10 @@
-// js/app.js - SaaS 公版化邏輯 (全域身分與區域資產隔離)
+// js/app.js - 2026 日本滑雪戰情室 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-// 🌟 修正點 1：將 get 一併在最頂端召喚，避免語法崩潰！
 import { getDatabase, ref, onValue, update, increment, get } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
 const urlParams = new URLSearchParams(window.location.search);
 const TRIP_ID = urlParams.get('id') || '2026_Japan';
 const LIFF_ID = '2009966916-2eO8R7Jn'; 
-
-// 🌟 區域記憶鑰匙產生器 (只針對代幣、投票紀錄)
 const getStoreKey = (key) => `${TRIP_ID}_${key}`;
 
 class FirebaseService {
@@ -70,7 +67,7 @@ class UIManager {
         }
     }
 
-    renderChart(data, isClosed) {
+    renderChart(data, isClosed) { /* 保持不變 */ 
         if (!this.elements.chartDom) return;
         const isDark = document.documentElement.classList.contains('dark'); const textColor = isDark ? '#e5e7eb' : '#374151';
         if (!this.chartInstance) { this.chartInstance = echarts.init(this.elements.chartDom); window.addEventListener('resize', () => this.chartInstance.resize()); }
@@ -79,7 +76,7 @@ class UIManager {
         this.chartInstance.setOption({ backgroundColor: 'transparent', grid: { top: 10, bottom: 20, left: 10, right: 30, containLabel: true }, xAxis: { type: 'value', show: false }, yAxis: { type: 'category', data: chartData.map(d => d.name), axisLine: { show: false }, axisTick: { show: false }, axisLabel: { color: textColor, width: 100, overflow: 'truncate' } }, series: [{ type: 'bar', data: chartData.map(d => d.value), label: { show: true, position: 'right', color: chartColor[0], fontWeight: 'bold' }, itemStyle: { color: new echarts.graphic.LinearGradient(1, 0, 0, 0, [{ offset: 0, color: chartColor[0] }, { offset: 1, color: chartColor[1] }]), borderRadius: [0, 4, 4, 0] }, barWidth: '50%', realtimeSort: true }], animationDuration: 500, animationEasing: 'cubicOut' });
     }
 
-    renderHotels(data, myVotes, isClosed, topHotelId) {
+    renderHotels(data, myVotes, isClosed, topHotelId) { /* 保持不變 */ 
         let html = '';
         Object.entries(data).forEach(([id, hotel]) => {
             if (hotel.is_deleted) return;
@@ -95,7 +92,7 @@ class UIManager {
         this.elements.hotelsContainer.innerHTML = html;
     }
 
-    renderTimeline(itinerary, hotelName) { 
+    renderTimeline(itinerary, hotelName) { /* 保持不變 */ 
         this.elements.timelineSubtitle.innerText = hotelName === 'all' ? '(整合版)' : `(${hotelName})`;
         let html = '';
         itinerary.forEach(day => {
@@ -106,14 +103,12 @@ class UIManager {
         this.elements.timelineContainer.innerHTML = html;
     }
 
-    renderDynamicBill(topHotel, appState, costsData) { 
+    renderDynamicBill(topHotel, appState, costsData) { /* 保持不變 */ 
         if (!this.elements.billDetails) return null;
         const rates = { JPY: 1, TWD: 0.21, HKD: 0.05 }; const symbols = { JPY: '¥', TWD: 'NT$', HKD: 'HK$' };
         const rate = rates[appState.currency]; const sym = symbols[appState.currency]; const p = appState.peopleCount;
         const format = (val) => `${sym} ` + Math.round(val * rate).toLocaleString();
-        
         let totalAA = 0; let billHtml = ''; let textBill = []; 
-
         if (costsData) {
             Object.values(costsData).forEach(cost => {
                 const myShare = cost.type === 'shared' ? Math.round(cost.amount / p) : parseInt(cost.amount);
@@ -123,17 +118,13 @@ class UIManager {
                 textBill.push(`${cost.icon} ${cost.name}${typeLabel}：${format(myShare)}`);
             });
         }
-
         const nights = appState.hotelNights || 4;
         const baseHotel = topHotel ? topHotel.price * nights : 0; 
         const hotelAA = Math.round(baseHotel / p);
         totalAA += hotelAA;
-        
         billHtml += `<div class="flex justify-between items-center"><div class="flex items-center text-gray-600 dark:text-gray-300"><span class="w-8 text-center mr-1">🏨</span> 住宿 (均攤 ${nights} 晚) <p class="text-[10px] text-blue-500 ml-1 truncate w-24">${topHotel ? topHotel.name : '未定'}</p></div><span class="font-medium dark:text-gray-200">${format(hotelAA)}</span></div>`;
         textBill.push(`🏨 住宿(${topHotel ? topHotel.name : '未定'})：${format(hotelAA)}`);
-
         billHtml += `<div class="flex justify-between items-center mt-4 pt-4 border-t border-gray-200 dark:border-gray-700"><div class="flex items-center text-gray-800 dark:text-white font-bold"><span class="w-8 text-center mr-1">💰</span> 每人應付總計</div><span class="font-black text-blue-600 dark:text-blue-400 text-xl">${format(totalAA)}</span></div>`;
-        
         this.elements.billDetails.innerHTML = billHtml; this.elements.peopleCount.innerText = p; 
         document.querySelectorAll('.curr-btn').forEach(btn => { btn.className = btn.dataset.curr === appState.currency ? `curr-btn px-3 py-1.5 rounded-md text-xs font-bold transition-colors bg-blue-600 text-white` : `curr-btn px-3 py-1.5 rounded-md text-xs font-bold transition-colors bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300`; }); 
         return { totalAA, rate, sym, textBill };
@@ -151,8 +142,7 @@ class UIManager {
 class SkiApp {
     constructor() {
         this.state = {
-            lineProfile: null, 
-            myVotes: JSON.parse(localStorage.getItem(getStoreKey('my_votes'))) || {},
+            lineProfile: null, myVotes: JSON.parse(localStorage.getItem(getStoreKey('my_votes'))) || {},
             topHotelId: null, topHotel: null, currency: 'TWD', peopleCount: 4, currentBillData: null,
             rawTimelineData: null, selectedHotelIdForTimeline: 'all', selectedHotelNameForTimeline: 'all',
             isVotingClosed: false, deadline: null, defaultTokens: 10, tokens: null, winnerId: null,
@@ -161,12 +151,9 @@ class SkiApp {
         this.service = new FirebaseService();
         this.ui = new UIManager();
         this.timerInterval = null;
-        
-        // 🌟 啟動金匙結界驗證
         this.validateLicense(); 
     }
 
-    // 🛡️ 金匙檢測結界
     async validateLicense() {
         try {
             const snap = await get(ref(this.service.db, `SYSTEM_LICENSES/${TRIP_ID}`));
@@ -176,12 +163,11 @@ class SkiApp {
                 document.body.innerHTML = '<div style="height:100dvh;display:flex;flex-direction:column;justify-content:center;align-items:center;background:#111;color:white;padding:20px;text-align:center;"><i class="fa-solid fa-lock text-6xl text-red-500 mb-4"></i><h1 class="text-2xl font-bold mb-2">授權無效或已被凍結</h1><p class="text-gray-400">請聯繫系統商確認您的金匙狀態。</p></div>';
                 return;
             }
-            if (license.type === 'rental' && Date.now() > license.expiresAt) {
+            // 🌟 修正點：防止 Date.now() > null 判斷錯誤
+            if (license.type === 'rental' && license.expiresAt && Date.now() > license.expiresAt) {
                 document.body.innerHTML = '<div style="height:100dvh;display:flex;flex-direction:column;justify-content:center;align-items:center;background:#111;color:white;padding:20px;text-align:center;"><i class="fa-solid fa-hourglass-end text-6xl text-orange-500 mb-4"></i><h1 class="text-2xl font-bold mb-2">租賃合約已到期</h1><p class="text-gray-400">此旅遊空間已鎖定，請主辦人續費解鎖。</p></div>';
                 return;
             }
-
-            // 檢測通過，放行！
             this.initSettingsAndLiff();
         } catch (error) {
             console.error("授權檢測失敗", error);
@@ -195,16 +181,14 @@ class SkiApp {
             this.state.deadline = settings.deadline; this.state.defaultTokens = settings.defaultTokens || 10; this.state.winnerId = settings.winnerId || null; 
             this.state.eventName = settings.eventName || '旅程'; this.state.tokenName = settings.tokenName || '代幣';
             this.state.hotelNights = settings.hotelNights || 4; 
-
             if (!this.state.liffInitialized) { this.state.liffInitialized = true; this.initLiff(); } 
-            else if (this.state.lineProfile) { this.handleLineLogin(this.state.lineProfile, settings); }
+            else if (this.state.lineProfile) { this.handleLineLogin(this.state.lineProfile); }
             this.triggerBillUpdate(); 
         });
     }
 
     async initLiff() {
         const loadingText = document.getElementById('liff-loading'); const loginBtn = document.getElementById('liff-login-btn');
-        // 🌟 修正點 2：LINE 身分改用「全域記憶」，不要加上 TRIP_ID 前綴！
         const savedProfile = JSON.parse(localStorage.getItem('global_line_profile'));
         if (!navigator.onLine && savedProfile) { this.handleLineLogin(savedProfile); return; }
 
@@ -215,35 +199,28 @@ class SkiApp {
                 localStorage.setItem('global_line_profile', JSON.stringify(profile)); 
                 this.handleLineLogin(profile); 
             } else { 
-                loadingText.classList.add('hidden'); 
-                loginBtn.classList.remove('hidden'); 
-                // 如果曾經在其他房間登入過，直接無縫喚醒身分！
-                if (savedProfile) {
-                    this.handleLineLogin(savedProfile);
-                }
+                loadingText.classList.add('hidden'); loginBtn.classList.remove('hidden'); 
+                if (savedProfile) { this.handleLineLogin(savedProfile); }
             }
-        } catch (err) { 
-            if (savedProfile) this.handleLineLogin(savedProfile); 
+        } catch (err) { if (savedProfile) this.handleLineLogin(savedProfile); }
+    }
+
+    // 🌟 核心修正：讓 LINE 登入後記住原本的 TRIP_ID！
+    loginWithLine() {
+        if (!liff.isLoggedIn()) {
+            // 交代 LINE 在登入後要準確送回原本帶 ID 的網址
+            const destinationUrl = window.location.href;
+            liff.login({ redirectUri: destinationUrl }); 
         }
     }
 
-    loginWithLine() { if (!liff.isLoggedIn()) liff.login(); }
-
     handleLineLogin(profile) {
         this.state.lineProfile = profile; this.ui.transitionToApp(profile); 
-        
-        // 代幣是「區域資產」，所以要用 getStoreKey (加上 TRIP_ID) 隔離
-        if (localStorage.getItem(getStoreKey('tokens')) === null) { 
-            this.state.tokens = this.state.defaultTokens; 
-            localStorage.setItem(getStoreKey('tokens'), this.state.tokens); 
-        } else { 
-            this.state.tokens = parseInt(localStorage.getItem(getStoreKey('tokens'))); 
-        }
+        if (localStorage.getItem(getStoreKey('tokens')) === null) { this.state.tokens = this.state.defaultTokens; localStorage.setItem(getStoreKey('tokens'), this.state.tokens); } 
+        else { this.state.tokens = parseInt(localStorage.getItem(getStoreKey('tokens'))); }
         this.ui.updateTokens(this.state.tokens); this.startCountdownTimer();
-
         const offHotels = JSON.parse(localStorage.getItem(getStoreKey('offline_hotels'))); if (offHotels) this.processHotelData(offHotels);
         const offCosts = JSON.parse(localStorage.getItem(getStoreKey('offline_costs'))); if (offCosts) { this.state.costsData = offCosts; this.triggerBillUpdate(); }
-        
         this.service.listenToHotels((data) => { localStorage.setItem(getStoreKey('offline_hotels'), JSON.stringify(data)); this.processHotelData(data); });
         this.service.listenToTimeline((data) => { localStorage.setItem(getStoreKey('offline_timeline'), JSON.stringify(data || {})); this.processTimelineData(data); });
         this.service.listenToCosts((data) => { localStorage.setItem(getStoreKey('offline_costs'), JSON.stringify(data)); this.state.costsData = data; this.triggerBillUpdate(); });
@@ -294,11 +271,9 @@ class SkiApp {
     async handleVote(id, change) {
         if (!navigator.onLine) return Swal.fire('極地狀態', '目前處於離線狀態，無法進行投票喔！', 'warning');
         if (this.state.isVotingClosed) return Swal.fire('封盤', '投票已結束，無法再變更！', 'error');
-
         const currentVal = this.state.myVotes[id] || 0;
         if (change < 0 && currentVal === 0) return;
         if (change > 0 && this.state.tokens <= 0) return Swal.fire('籌碼耗盡', `你的${this.state.tokenName}已用完`, 'info');
-
         this.state.myVotes[id] = currentVal + change; this.state.tokens -= change;
         localStorage.setItem(getStoreKey('tokens'), this.state.tokens); localStorage.setItem(getStoreKey('my_votes'), JSON.stringify(this.state.myVotes));
         this.ui.updateTokens(this.state.tokens);
