@@ -1,10 +1,13 @@
-// app.js - SaaS 公版化邏輯 (Phase 3: AA 帳單動態模組化)
+// js/app.js - SaaS 公版化邏輯 (全域身分與區域資產隔離)
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getDatabase, ref, onValue, update, increment } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
+// 🌟 修正點 1：將 get 一併在最頂端召喚，避免語法崩潰！
+import { getDatabase, ref, onValue, update, increment, get } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js";
 
 const urlParams = new URLSearchParams(window.location.search);
 const TRIP_ID = urlParams.get('id') || '2026_Japan';
 const LIFF_ID = '2009966916-2eO8R7Jn'; 
+
+// 🌟 區域記憶鑰匙產生器 (只針對代幣、投票紀錄)
 const getStoreKey = (key) => `${TRIP_ID}_${key}`;
 
 class FirebaseService {
@@ -15,7 +18,6 @@ class FirebaseService {
     listenToHotels(callback) { onValue(ref(this.db, `${TRIP_ID}/hotels`), (s) => callback(s.val() || {})); }
     listenToTimeline(callback) { onValue(ref(this.db, `${TRIP_ID}/timeline`), (s) => callback(s.val() || null)); }
     listenToSettings(callback) { onValue(ref(this.db, `${TRIP_ID}/settings`), (s) => callback(s.val() || {})); }
-    // 🌟 新增監聽成本項目
     listenToCosts(callback) { onValue(ref(this.db, `${TRIP_ID}/costs`), (s) => callback(s.val() || {})); }
     async submitVote(hotelId, change) { return await update(ref(this.db, `${TRIP_ID}/hotels/${hotelId}`), { totalVotes: increment(change) }); }
 }
@@ -104,21 +106,16 @@ class UIManager {
         this.elements.timelineContainer.innerHTML = html;
     }
 
-    // 🌟 全新動態帳單模組
     renderDynamicBill(topHotel, appState, costsData) { 
         if (!this.elements.billDetails) return null;
         const rates = { JPY: 1, TWD: 0.21, HKD: 0.05 }; const symbols = { JPY: '¥', TWD: 'NT$', HKD: 'HK$' };
         const rate = rates[appState.currency]; const sym = symbols[appState.currency]; const p = appState.peopleCount;
         const format = (val) => `${sym} ` + Math.round(val * rate).toLocaleString();
         
-        let totalAA = 0;
-        let billHtml = '';
-        let textBill = []; // 準備給剪貼簿用的純文字清單
+        let totalAA = 0; let billHtml = ''; let textBill = []; 
 
-        // 1. 動態渲染後台建立的「固定成本」
         if (costsData) {
             Object.values(costsData).forEach(cost => {
-                // 如果是「shared」就除以人數，否則算個人的
                 const myShare = cost.type === 'shared' ? Math.round(cost.amount / p) : parseInt(cost.amount);
                 totalAA += myShare;
                 const typeLabel = cost.type === 'shared' ? ' (均攤)' : ' (個人)';
@@ -127,7 +124,6 @@ class UIManager {
             });
         }
 
-        // 2. 渲染動態決定的住宿成本
         const nights = appState.hotelNights || 4;
         const baseHotel = topHotel ? topHotel.price * nights : 0; 
         const hotelAA = Math.round(baseHotel / p);
@@ -136,13 +132,10 @@ class UIManager {
         billHtml += `<div class="flex justify-between items-center"><div class="flex items-center text-gray-600 dark:text-gray-300"><span class="w-8 text-center mr-1">🏨</span> 住宿 (均攤 ${nights} 晚) <p class="text-[10px] text-blue-500 ml-1 truncate w-24">${topHotel ? topHotel.name : '未定'}</p></div><span class="font-medium dark:text-gray-200">${format(hotelAA)}</span></div>`;
         textBill.push(`🏨 住宿(${topHotel ? topHotel.name : '未定'})：${format(hotelAA)}`);
 
-        // 3. 總計
         billHtml += `<div class="flex justify-between items-center mt-4 pt-4 border-t border-gray-200 dark:border-gray-700"><div class="flex items-center text-gray-800 dark:text-white font-bold"><span class="w-8 text-center mr-1">💰</span> 每人應付總計</div><span class="font-black text-blue-600 dark:text-blue-400 text-xl">${format(totalAA)}</span></div>`;
         
-        this.elements.billDetails.innerHTML = billHtml;
-        this.elements.peopleCount.innerText = p; 
+        this.elements.billDetails.innerHTML = billHtml; this.elements.peopleCount.innerText = p; 
         document.querySelectorAll('.curr-btn').forEach(btn => { btn.className = btn.dataset.curr === appState.currency ? `curr-btn px-3 py-1.5 rounded-md text-xs font-bold transition-colors bg-blue-600 text-white` : `curr-btn px-3 py-1.5 rounded-md text-xs font-bold transition-colors bg-gray-200 dark:bg-gray-600 text-gray-600 dark:text-gray-300`; }); 
-        
         return { totalAA, rate, sym, textBill };
     }
 
@@ -163,20 +156,18 @@ class SkiApp {
             topHotelId: null, topHotel: null, currency: 'TWD', peopleCount: 4, currentBillData: null,
             rawTimelineData: null, selectedHotelIdForTimeline: 'all', selectedHotelNameForTimeline: 'all',
             isVotingClosed: false, deadline: null, defaultTokens: 10, tokens: null, winnerId: null,
-            eventName: '旅程', tokenName: '代幣', hotelNights: 4, costsData: {}
+            eventName: '旅程', tokenName: '代幣', hotelNights: 4, costsData: {} 
         };
         this.service = new FirebaseService();
         this.ui = new UIManager();
         this.timerInterval = null;
         
-        // 🌟 啟動時不再直接載入，而是先經過「金匙檢測結界」！
+        // 🌟 啟動金匙結界驗證
         this.validateLicense(); 
     }
 
     // 🛡️ 金匙檢測結界
     async validateLicense() {
-        import { get } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-database.js"; // 確保有引入 get
-        
         try {
             const snap = await get(ref(this.service.db, `SYSTEM_LICENSES/${TRIP_ID}`));
             const license = snap.val();
@@ -190,48 +181,66 @@ class SkiApp {
                 return;
             }
 
-            // 檢測通過，准許放行！
+            // 檢測通過，放行！
             this.initSettingsAndLiff();
         } catch (error) {
             console.error("授權檢測失敗", error);
-            // 離線狀態下，如果之前有登入過，還是讓他看舊資料
             if (!navigator.onLine) this.initSettingsAndLiff();
         }
     }
+
     initSettingsAndLiff() {
         this.service.listenToSettings((settings) => {
             this.ui.applyThemeSettings(settings);
             this.state.deadline = settings.deadline; this.state.defaultTokens = settings.defaultTokens || 10; this.state.winnerId = settings.winnerId || null; 
             this.state.eventName = settings.eventName || '旅程'; this.state.tokenName = settings.tokenName || '代幣';
-            this.state.hotelNights = settings.hotelNights || 4; // 🌟 抓取住宿晚數
+            this.state.hotelNights = settings.hotelNights || 4; 
 
             if (!this.state.liffInitialized) { this.state.liffInitialized = true; this.initLiff(); } 
             else if (this.state.lineProfile) { this.handleLineLogin(this.state.lineProfile, settings); }
-            this.triggerBillUpdate(); // 設定改變時更新帳單
+            this.triggerBillUpdate(); 
         });
     }
 
     async initLiff() {
         const loadingText = document.getElementById('liff-loading'); const loginBtn = document.getElementById('liff-login-btn');
-        const savedProfile = JSON.parse(localStorage.getItem(getStoreKey('line_profile')));
+        // 🌟 修正點 2：LINE 身分改用「全域記憶」，不要加上 TRIP_ID 前綴！
+        const savedProfile = JSON.parse(localStorage.getItem('global_line_profile'));
         if (!navigator.onLine && savedProfile) { this.handleLineLogin(savedProfile); return; }
 
         try {
             await liff.init({ liffId: LIFF_ID });
-            if (liff.isLoggedIn()) { const profile = await liff.getProfile(); localStorage.setItem(getStoreKey('line_profile'), JSON.stringify(profile)); this.handleLineLogin(profile); } 
-            else { loadingText.classList.add('hidden'); loginBtn.classList.remove('hidden'); }
-        } catch (err) { if (savedProfile) this.handleLineLogin(savedProfile); }
+            if (liff.isLoggedIn()) { 
+                const profile = await liff.getProfile(); 
+                localStorage.setItem('global_line_profile', JSON.stringify(profile)); 
+                this.handleLineLogin(profile); 
+            } else { 
+                loadingText.classList.add('hidden'); 
+                loginBtn.classList.remove('hidden'); 
+                // 如果曾經在其他房間登入過，直接無縫喚醒身分！
+                if (savedProfile) {
+                    this.handleLineLogin(savedProfile);
+                }
+            }
+        } catch (err) { 
+            if (savedProfile) this.handleLineLogin(savedProfile); 
+        }
     }
 
     loginWithLine() { if (!liff.isLoggedIn()) liff.login(); }
 
     handleLineLogin(profile) {
         this.state.lineProfile = profile; this.ui.transitionToApp(profile); 
-        if (localStorage.getItem(getStoreKey('tokens')) === null) { this.state.tokens = this.state.defaultTokens; localStorage.setItem(getStoreKey('tokens'), this.state.tokens); } 
-        else { this.state.tokens = parseInt(localStorage.getItem(getStoreKey('tokens'))); }
+        
+        // 代幣是「區域資產」，所以要用 getStoreKey (加上 TRIP_ID) 隔離
+        if (localStorage.getItem(getStoreKey('tokens')) === null) { 
+            this.state.tokens = this.state.defaultTokens; 
+            localStorage.setItem(getStoreKey('tokens'), this.state.tokens); 
+        } else { 
+            this.state.tokens = parseInt(localStorage.getItem(getStoreKey('tokens'))); 
+        }
         this.ui.updateTokens(this.state.tokens); this.startCountdownTimer();
 
-        // 🌟 初始化離線資料與即時監聽
         const offHotels = JSON.parse(localStorage.getItem(getStoreKey('offline_hotels'))); if (offHotels) this.processHotelData(offHotels);
         const offCosts = JSON.parse(localStorage.getItem(getStoreKey('offline_costs'))); if (offCosts) { this.state.costsData = offCosts; this.triggerBillUpdate(); }
         
@@ -280,8 +289,6 @@ class SkiApp {
     }
     setCurrency(curr) { this.state.currency = curr; this.triggerBillUpdate(); }
     changePeople(delta) { const newCount = this.state.peopleCount + delta; if (newCount >= 1 && newCount <= 20) { this.state.peopleCount = newCount; this.triggerBillUpdate(); } }
-    
-    // 🌟 觸發帳單更新時，帶入成本與住宿晚數
     triggerBillUpdate() { this.state.currentBillData = this.ui.renderDynamicBill(this.state.topHotel, this.state, this.state.costsData); }
 
     async handleVote(id, change) {
@@ -298,15 +305,13 @@ class SkiApp {
         try { await this.service.submitVote(id, change); } catch (err) { this.state.myVotes[id] = currentVal; this.state.tokens += change; this.ui.updateTokens(this.state.tokens); Swal.fire('斷線', '投票失敗請重試', 'error'); }
     }
 
-    // 🌟 複製訊息改為動態串接
     copyBillMessage() { 
         if (!this.state.currentBillData) return;
-        const b = this.state.currentBillData; 
+        const b = this.state.currentBillData; const f = (val) => `${b.sym} ` + Math.round(val * b.rate).toLocaleString();
         const userName = this.state.lineProfile ? this.state.lineProfile.displayName : '旅伴';
         let msg = `【${userName}的${this.state.eventName}帳單 (共 ${this.state.peopleCount} 人分攤)】\n`;
         b.textBill.forEach(line => msg += line + '\n');
         msg += `\n💰 每人應付：${b.sym} ${Math.round(b.totalAA * b.rate).toLocaleString()}\n\n🏦 請匯款至：(代碼 808) 1234-567-890123\n🙏 期待一起出發！`;
-        
         navigator.clipboard.writeText(msg).then(() => Swal.fire('成功', '動態帳單已複製', 'success'));
     }
 }
